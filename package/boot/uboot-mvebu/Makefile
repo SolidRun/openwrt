@@ -29,8 +29,15 @@ define U-Boot/clearfog
   UBOOT_IMAGE:=u-boot-spl.kwb
 endef
 
+define U-Boot/naeba
+  NAME:=Naeba machine
+  BUILD_DEVICES:=armada-385-naeba
+  UBOOT_IMAGE:=u-boot-spl.kwb
+endef
+
+
 UBOOT_TARGETS:= \
-	clearfog
+	clearfog naeba
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(STAGING_DIR_IMAGE)
