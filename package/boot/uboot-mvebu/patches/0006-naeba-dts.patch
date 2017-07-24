@@ -1,0 +1,313 @@
+--- u-boot-2017.03.orig/arch/arm/dts/armada-385-naeba.dts	1970-01-01 02:00:00.000000000 +0200
++++ u-boot-2017.03/arch/arm/dts/armada-385-naeba.dts	2017-06-11 19:20:22.441629096 +0300
+@@ -0,0 +1,310 @@
++/*
++ * Device Tree file for Naeba machine rev 1.0 (88F6825)
++ *
++ *  Rabeeh Khoury, based on work by Russell King
++ *
++ * This board is in development; the contents of this file work with
++ * the A1 rev 2.0 of the board, which does not represent final
++ * production board.  Things will change, don't expect this file to
++ * remain compatible info the future.
++ *
++ * This file is dual-licensed: you can use it either under the terms
++ * of the GPL or the X11 license, at your option. Note that this dual
++ * licensing only applies to this file, and not this project as a
++ * whole.
++ *
++ *  a) This file is free software; you can redistribute it and/or
++ *     modify it under the terms of the GNU General Public License
++ *     version 2 as published by the Free Software Foundation.
++ *
++ *     This file is distributed in the hope that it will be useful
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ * Or, alternatively
++ *
++ *  b) Permission is hereby granted, free of charge, to any person
++ *     obtaining a copy of this software and associated documentation
++ *     files (the "Software"), to deal in the Software without
++ *     restriction, including without limitation the rights to use
++ *     copy, modify, merge, publish, distribute, sublicense, and/or
++ *     sell copies of the Software, and to permit persons to whom the
++ *     Software is furnished to do so, subject to the following
++ *     conditions:
++ *
++ *     The above copyright notice and this permission notice shall be
++ *     included in all copies or substantial portions of the Software.
++ *
++ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
++ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
++ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
++ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
++ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
++ *     OTHER DEALINGS IN THE SOFTWARE.
++ */
++
++/dts-v1/;
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/gpio/gpio.h>
++#include "armada-388.dtsi"
++
++/ {
++	model = "Naeba machine";
++	compatible = "marvell,armada388",
++		"marvell,armada385", "marvell,armada380";
++
++	aliases {
++		/* So that mvebu u-boot can update the MAC addresses */
++		ethernet1 = &eth0;
++		ethernet2 = &eth1;
++		ethernet3 = &eth2;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	memory {
++		device_type = "memory";
++		reg = <0x00000000 0x10000000>; /* 256 MB */
++	};
++
++	reg_3p3v: regulator-3p3v {
++		compatible = "regulator-fixed";
++		regulator-name = "3P3V";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++	};
++
++	soc {
++		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
++			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
++			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
++			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
++
++		internal-regs {
++			ethernet@30000 {
++				mac-address = [00 50 43 02 02 02];
++				phy-mode = "sgmii";
++				status = "okay";
++
++				fixed-link {
++					speed = <1000>;
++					full-duplex;
++				};
++			};
++
++			ethernet@34000 {
++				mac-address = [00 50 43 02 02 03];
++				managed = "in-band-status";
++				phy-mode = "sgmii";
++				status = "okay";
++			};
++
++			ethernet@70000 {
++				mac-address = [00 50 43 02 02 01];
++				pinctrl-0 = <&ge0_rgmii_pins>;
++				pinctrl-names = "default";
++				phy = <&phy_dedicated>;
++				phy-mode = "rgmii-id";
++				status = "okay";
++			};
++
++			i2c@11000 {
++				/* Routed to NFC front panel module */
++				clock-frequency = <400000>;
++				pinctrl-0 = <&i2c0_pins>;
++				pinctrl-names = "default";
++				status = "okay";
++
++			};
++
++			i2c@11100 {
++				clock-frequency = <400000>;
++				pinctrl-0 = <&naeba_i2c1_pins>;
++				pinctrl-names = "default";
++				status = "okay";
++			};
++
++			mdio@72004 {
++				pinctrl-0 = <&mdio_pins>;
++				pinctrl-names = "default";
++
++				phy_dedicated: ethernet-phy@0 {
++					/*
++					 * Annoyingly, the marvell phy driver
++					 * configures the LED register, rather
++					 * than preserving reset-loaded setting.
++					 * We undo that rubbish here.
++					 */
++					marvell,reg-init = <3 16 0 0x101e>;
++					reg = <0>;
++				};
++			};
++
++			pinctrl@18000 {
++				naeba_dsa0_pins: naeba-dsa0-pins {
++					marvell,pins = "mpp32", "mpp23";
++					marvell,function = "gpio";
++				};
++				naeba_i2c1_pins: i2c1-pins {
++					/* SFP */
++					marvell,pins = "mpp26", "mpp27";
++					marvell,function = "i2c1";
++				};
++				naeba_sdhci_pins: naeba-sdhci-pins {
++					marvell,pins = "mpp21", "mpp28",
++						       "mpp37", "mpp38",
++						       "mpp39", "mpp40";
++					marvell,function = "sd0";
++				};
++				naeba_spi1_cs_pins: spi1-cs-pins {
++					marvell,pins = "mpp55";
++					marvell,function = "spi1";
++				};
++				rear_button_pins: rear-button-pins {
++					marvell,pins = "mpp36";
++					marvell,function = "gpio";
++				};
++			};
++
++			rtc@a3800 {
++				/*
++				 * If the rtc doesn't work, run "date reset"
++				 * twice in u-boot.
++				 */
++				status = "okay";
++			};
++
++			sdhci@d8000 {
++				bus-width = <4>;
++				cd-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
++				no-1-8-v;
++				pinctrl-0 = <&naeba_sdhci_pins>;
++				pinctrl-names = "default";
++				status = "okay";
++				vmmc = <&reg_3p3v>;
++				wp-inverted;
++			};
++
++			serial@12000 {
++				pinctrl-0 = <&uart0_pins>;
++				pinctrl-names = "default";
++				status = "okay";
++				u-boot,dm-pre-reloc;
++			};
++
++			spi@10680 {
++				/*
++				 * CS0: W25Q32 - by default not assembled
++				 * CS1: ZL8801 - assembled on part of the units
++				 * CS2: Micron 1Gb - by default not assembled
++				 * CS3: SLB9670 TPM - by default not assembled
++				 */
++				pinctrl-0 = <&spi1_pins &naeba_spi1_cs_pins>;
++				pinctrl-names = "default";
++				status = "okay";
++
++				spi-flash@0 {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					compatible = "w25q32", "jedec,spi-nor";
++					reg = <0>; /* Chip select 0 */
++					spi-max-frequency = <3000000>;
++					status = "disabled";
++				};
++			};
++
++			usb3@f8000 {
++				status = "okay";
++			};
++		};
++
++		pcie-controller {
++			status = "okay";
++			/*
++			 * The two PCIe units are accessible through
++			 * the mini-PCIe connectors on the board.
++			 */
++			pcie@2,0 {
++				/* Port 1, Lane 0. CONN3, nearest power. */
++				reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
++				status = "okay";
++			};
++			pcie@3,0 {
++				/* Port 2, Lane 0. CONN2, nearest CPU. */
++				reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
++				status = "okay";
++			};
++		};
++	};
++
++	sfp: sfp {
++		compatible = "sff,sfp";
++		i2c-bus = <&i2c1>;
++		los-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
++		moddef0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
++		sfp,ethernet = <&eth2>;
++		tx-disable-gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
++		tx-fault-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
++	};
++
++	dsa@0 {
++		compatible = "marvell,dsa";
++		dsa,ethernet = <&eth1>;
++		dsa,mii-bus = <&mdio>;
++		pinctrl-0 = <&naeba_dsa0_pins>;
++		pinctrl-names = "default";
++		#address-cells = <2>;
++		#size-cells = <0>;
++
++		switch@0 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			reg = <4 0>;
++
++			port@1 {
++				reg = <1>;
++				label = "lan1";
++			};
++
++			port@2 {
++				reg = <2>;
++				label = "lan2";
++			};
++
++			port@3 {
++				reg = <3>;
++				label = "lan3";
++			};
++
++			port@4 {
++				reg = <4>;
++				label = "lan4";
++			};
++
++			port@5 {
++				reg = <5>;
++				label = "cpu";
++			};
++		};
++	};
++
++	gpio-keys {
++		compatible = "gpio-keys";
++		pinctrl-0 = <&rear_button_pins>;
++		pinctrl-names = "default";
++
++		button_0 {
++			/* The rear SW3 button */
++			label = "Rear Button";
++			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
++			linux,can-disable;
++			linux,code = <BTN_0>;
++		};
++	};
++};
