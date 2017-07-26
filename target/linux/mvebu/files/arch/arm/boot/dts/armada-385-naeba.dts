@@ -385,7 +385,7 @@
 		 * register, rather than preserving reset-loaded setting.
 		 * We undo that rubbish here.
 		 */
-		marvell,reg-init = <3 16 0 0x101e>;
+		marvell,reg-init = <3 16 0 0x1017>;
 		reg = <0>;
 	};
 };
