@@ -1,0 +1,112 @@
+From 4fd647f0eecaa6bc290661ad53324fdcfadb238b Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 5 Sep 2017 22:16:35 +0300
+Subject: [PATCH 2/3] net: dsa: mv88e6xxx: Add 88e6141 fixes
+
+This patch adds Topaz 88e6141 fixes around phy address number not being
+identical to the port number, and then 2.5Gbps uplink support.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/dsa/mv88e6xxx/chip.c      |   18 ++++++++++++++----
+ drivers/net/dsa/mv88e6xxx/mv88e6xxx.h |    4 ++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/dsa/mv88e6xxx/chip.c b/drivers/net/dsa/mv88e6xxx/chip.c
+index 214624b..ae0cd2e 100644
+--- a/drivers/net/dsa/mv88e6xxx/chip.c
++++ b/drivers/net/dsa/mv88e6xxx/chip.c
+@@ -2461,10 +2461,15 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+	int err;
+	u16 reg;
+
++	if (mv88e6xxx_6341_family(chip)) {
++		chip->ds->phys_mii_mask |= 1 << (port + 16);
++	}
++
+	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
+	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
+	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6095_family(chip) ||
+-	    mv88e6xxx_6065_family(chip) || mv88e6xxx_6320_family(chip)) {
++	    mv88e6xxx_6065_family(chip) || mv88e6xxx_6320_family(chip) ||
++	    mv88e6xxx_6341_family(chip)) {
+		/* MAC Forcing register: don't force link, speed,
+		 * duplex or flow control state to any particular
+		 * values on physical ports, but force the CPU port
+@@ -2480,6 +2485,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+				PORT_PCS_CTRL_FORCE_DUPLEX;
+			if (mv88e6xxx_6065_family(chip))
+				reg |= PORT_PCS_CTRL_100;
++			else if (mv88e6xxx_6341_family(chip))
++				reg |= PORT_PCS_CTRL_2500;
+			else
+				reg |= PORT_PCS_CTRL_1000;
+		} else {
+@@ -2509,7 +2516,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
+	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
+	    mv88e6xxx_6095_family(chip) || mv88e6xxx_6065_family(chip) ||
+-	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6320_family(chip))
++	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6320_family(chip) ||
++	    mv88e6xxx_6341_family(chip))
+		reg = PORT_CONTROL_IGMP_MLD_SNOOP |
+		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
+		PORT_CONTROL_STATE_FORWARDING;
+@@ -2530,7 +2538,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+		    mv88e6xxx_6351_family(chip) ||
+		    mv88e6xxx_6165_family(chip) ||
+		    mv88e6xxx_6097_family(chip) ||
+-		    mv88e6xxx_6320_family(chip)) {
++		    mv88e6xxx_6320_family(chip) ||
++		    mv88e6xxx_6341_family(chip)) {
+			reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		}
+
+@@ -2554,7 +2563,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+		reg &= PORT_STATUS_CMODE_MASK;
+		if ((reg == PORT_STATUS_CMODE_100BASE_X) ||
+		    (reg == PORT_STATUS_CMODE_1000BASE_X) ||
+-		    (reg == PORT_STATUS_CMODE_SGMII)) {
++		    (reg == PORT_STATUS_CMODE_SGMII) ||
++		    (reg == PORT_STATUS_CMODE_2500BASE_X)) {
+			err = mv88e6xxx_serdes_power_on(chip);
+			if (err < 0)
+				return err;
+diff --git a/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h b/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h
+index 4bfe6c6..ea9da16 100644
+--- a/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h
++++ b/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h
+@@ -57,6 +57,7 @@
+ #define PORT_STATUS_CMODE_100BASE_X	0x8
+ #define PORT_STATUS_CMODE_1000BASE_X	0x9
+ #define PORT_STATUS_CMODE_SGMII		0xa
++#define PORT_STATUS_CMODE_2500BASE_X	0xb
+ #define PORT_PCS_CTRL		0x01
+ #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
+ #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
+@@ -69,6 +70,7 @@
+ #define PORT_PCS_CTRL_10		0x00
+ #define PORT_PCS_CTRL_100		0x01
+ #define PORT_PCS_CTRL_1000		0x02
++#define PORT_PCS_CTRL_2500		0x3003
+ #define PORT_PCS_CTRL_UNFORCED		0x03
+ #define PORT_PAUSE_CTRL		0x02
+ #define PORT_SWITCH_ID		0x03
+@@ -169,6 +171,7 @@
+ #define GLOBAL_STATUS_PPU_INITIALIZING	(0x1 << 14)
+ #define GLOBAL_STATUS_PPU_DISABLED	(0x2 << 14)
+ #define GLOBAL_STATUS_PPU_POLLING	(0x3 << 14)
++#define GLOBAL_STATUS_INIT_READY BIT(11)
+ #define GLOBAL_MAC_01		0x01
+ #define GLOBAL_MAC_23		0x02
+ #define GLOBAL_MAC_45		0x03
+@@ -567,6 +570,7 @@ enum mv88e6xxx_cap {
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_POT |	\
++	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_IRL |		\
+--
+1.7.9.5

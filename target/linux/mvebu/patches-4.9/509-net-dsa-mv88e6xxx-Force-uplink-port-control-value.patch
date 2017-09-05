@@ -1,0 +1,33 @@
+From afcbef6c7d5a57989bf6b45308abc7f6346549d1 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 5 Sep 2017 22:19:01 +0300
+Subject: [PATCH 3/3] net: dsa: mv88e6xxx: Force uplink port control value
+
+This patch is a temporary one and forces port control to value 0x7f
+as it's default reset value.
+
+Somehow the value that is being calculated (0x3537) for the uplink
+port does not forward any packets.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/dsa/mv88e6xxx/chip.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/net/dsa/mv88e6xxx/chip.c b/drivers/net/dsa/mv88e6xxx/chip.c
+index ae0cd2e..8642e35 100644
+--- a/drivers/net/dsa/mv88e6xxx/chip.c
++++ b/drivers/net/dsa/mv88e6xxx/chip.c
+@@ -2548,6 +2548,10 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
+				PORT_CONTROL_FORWARD_UNKNOWN_MC;
+	}
+	if (reg) {
++		/* Hackaround for Topaz switch */
++		if (mv88e6xxx_6341_family(chip) && (port == 5)) {
++			reg = 0x7f;
++		}
+		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+		if (err)
+			return err;
+--
+1.7.9.5

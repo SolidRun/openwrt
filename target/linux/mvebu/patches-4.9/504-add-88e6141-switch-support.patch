@@ -1,0 +1,141 @@
+diff -Nru linux-4.9.30.copy/drivers/net/dsa/mv88e6xxx/chip.c linux-4.9.30/drivers/net/dsa/mv88e6xxx/chip.c
+--- linux-4.9.30.copy/drivers/net/dsa/mv88e6xxx/chip.c	2017-05-25 16:45:05.000000000 +0300
++++ linux-4.9.30/drivers/net/dsa/mv88e6xxx/chip.c	2017-07-24 19:41:17.453245653 +0300
+@@ -545,6 +552,11 @@
+	return chip->info->family == MV88E6XXX_FAMILY_6320;
+ }
+
++static bool mv88e6xxx_6341_family(struct mv88e6xxx_chip *chip)
++{
++	return chip->info->family == MV88E6XXX_FAMILY_6341;
++}
++
+ static bool mv88e6xxx_6351_family(struct mv88e6xxx_chip *chip)
+ {
+	return chip->info->family == MV88E6XXX_FAMILY_6351;
+@@ -1709,7 +1721,8 @@
+			: GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+
+	if (mv88e6xxx_6097_family(chip) || mv88e6xxx_6165_family(chip) ||
+-	    mv88e6xxx_6351_family(chip) || mv88e6xxx_6352_family(chip)) {
++	    mv88e6xxx_6351_family(chip) || mv88e6xxx_6352_family(chip) ||
++	    mv88e6xxx_6341_family(chip)) {
+		struct mv88e6xxx_vtu_entry vstp;
+
+		/* Adding a VTU entry requires a valid STU entry. As VSTP is not
+@@ -2565,7 +2578,7 @@
+	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
+	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
+	    mv88e6xxx_6095_family(chip) || mv88e6xxx_6320_family(chip) ||
+-	    mv88e6xxx_6185_family(chip))
++	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6341_family(chip))
+		reg = PORT_CONTROL_2_MAP_DA;
+
+	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
+@@ -2611,7 +2624,7 @@
+
+	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
+	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
+-	    mv88e6xxx_6320_family(chip)) {
++	    mv88e6xxx_6320_family(chip) || mv88e6xxx_6341_family(chip)) {
+		/* Do not limit the period of time that this port can
+		 * be paused for by the remote end or the period of
+		 * time that this port can pause the remote end.
+@@ -3316,6 +3334,14 @@
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+ };
+
++static const struct mv88e6xxx_ops mv88e6141_ops = {
++	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
++	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
++	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
++	.phy_read = mv88e6xxx_g2_smi_phy_read,
++	.phy_write = mv88e6xxx_g2_smi_phy_write,
++};
++
+ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
+	[MV88E6085] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
+@@ -3537,6 +3563,19 @@
+		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+		.ops = &mv88e6352_ops,
+	},
++
++	[MV88E6141] = {
++		.prod_num = PORT_SWITCH_ID_PROD_NUM_6141,
++		.family = MV88E6XXX_FAMILY_6341,
++		.name = "Marvell 88E6141",
++		.num_databases = 4096,
++		.num_ports = 6,
++		.port_base_addr = 0x10,
++		.global1_addr = 0x1b,
++		.age_time_coeff = 15000,
++		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
++		.ops = &mv88e6141_ops,
++	},
+ };
+
+ static const struct mv88e6xxx_info *mv88e6xxx_lookup_info(unsigned int prod_num)
+diff -Nru linux-4.9.30.copy/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h linux-4.9.30/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h
+--- linux-4.9.30.copy/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h	2017-05-25 16:45:05.000000000 +0300
++++ linux-4.9.30/drivers/net/dsa/mv88e6xxx/mv88e6xxx.h	2017-07-24 19:20:42.921215059 +0300
+@@ -77,6 +77,7 @@
+ #define PORT_SWITCH_ID_PROD_NUM_6131	0x106
+ #define PORT_SWITCH_ID_PROD_NUM_6320	0x115
+ #define PORT_SWITCH_ID_PROD_NUM_6123	0x121
++#define PORT_SWITCH_ID_PROD_NUM_6141	0x340
+ #define PORT_SWITCH_ID_PROD_NUM_6161	0x161
+ #define PORT_SWITCH_ID_PROD_NUM_6165	0x165
+ #define PORT_SWITCH_ID_PROD_NUM_6171	0x171
+@@ -89,6 +90,7 @@
+ #define PORT_SWITCH_ID_PROD_NUM_6352	0x352
+ #define PORT_SWITCH_ID_PROD_NUM_6350	0x371
+ #define PORT_SWITCH_ID_PROD_NUM_6351	0x375
++#define PORT_SWITCH_ID_PROD_NUM_6341	0x340
+ #define PORT_CONTROL		0x04
+ #define PORT_CONTROL_USE_CORE_TAG	BIT(15)
+ #define PORT_CONTROL_DROP_ON_LOCK	BIT(14)
+@@ -355,6 +357,7 @@
+	MV88E6095,
+	MV88E6123,
+	MV88E6131,
++	MV88E6141,
+	MV88E6161,
+	MV88E6165,
+	MV88E6171,
+@@ -365,6 +368,7 @@
+	MV88E6240,
+	MV88E6320,
+	MV88E6321,
++	MV88E6341,
+	MV88E6350,
+	MV88E6351,
+	MV88E6352,
+@@ -378,6 +382,7 @@
+	MV88E6XXX_FAMILY_6165,	/* 6123 6161 6165 */
+	MV88E6XXX_FAMILY_6185,	/* 6108 6121 6122 6131 6152 6155 6182 6185 */
+	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
++	MV88E6XXX_FAMILY_6341,	/* 6141 6341 */
+	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
+	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
+ };
+@@ -556,6 +561,19 @@
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_PVT)
+
++#define MV88E6XXX_FLAGS_FAMILY_6341	\
++	(MV88E6XXX_FLAG_EEE |		\
++	 MV88E6XXX_FLAG_G1_ATU_FID |	\
++	 MV88E6XXX_FLAG_G1_VTU_FID |	\
++	 MV88E6XXX_FLAG_GLOBAL2 |	\
++	 MV88E6XXX_FLAG_G2_POT |	\
++	 MV88E6XXX_FLAG_STU |		\
++	 MV88E6XXX_FLAG_VTU |		\
++	 MV88E6XXX_FLAGS_IRL |		\
++	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
++	 MV88E6XXX_FLAGS_PVT |		\
++	 MV88E6XXX_FLAGS_SERDES)
++
+ #define MV88E6XXX_FLAGS_FAMILY_6351	\
+	(MV88E6XXX_FLAG_EDSA |		\
+	 MV88E6XXX_FLAG_G1_ATU_FID |	\

@@ -1,0 +1,39 @@
+From 3dcc4591aa9612d2f904aef0ff4782c52f78a5d6 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 5 Sep 2017 22:24:58 +0300
+Subject: [PATCH] net: dsa: mv88e6xxx: phy address is not as port number
+
+Patch ported back to LK 4.9 based on mainline commit -
+891daf49b0f6e900af6bde51e2dc2cbc72b83f4e
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/dsa/mv88e6xxx/chip.c |    6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/drivers/net/dsa/mv88e6xxx/chip.c b/drivers/net/dsa/mv88e6xxx/chip.c
+index 79400e3..7657f75 100644
+--- a/drivers/net/dsa/mv88e6xxx/chip.c
++++ b/drivers/net/dsa/mv88e6xxx/chip.c
+@@ -2931,9 +2931,6 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
+	u16 val;
+	int err;
+
+-	if (phy >= mv88e6xxx_num_ports(chip))
+-		return 0xffff;
+-
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_phy_read(chip, phy, reg, &val);
+	mutex_unlock(&chip->reg_lock);
+@@ -2946,9 +2943,6 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
+	struct mv88e6xxx_chip *chip = bus->priv;
+	int err;
+
+-	if (phy >= mv88e6xxx_num_ports(chip))
+-		return 0xffff;
+-
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_phy_write(chip, phy, reg, val);
+	mutex_unlock(&chip->reg_lock);
+--
+1.7.9.5

@@ -1,0 +1,33 @@
+diff -Nru linux-4.9.30.copy/drivers/net/phy/mvsw61xx.c linux-4.9.30/drivers/net/phy/mvsw61xx.c
+--- linux-4.9.30.copy/drivers/net/phy/mvsw61xx.c	2017-06-08 13:40:06.306699611 +0300
++++ linux-4.9.30/drivers/net/phy/mvsw61xx.c	2017-07-24 20:03:24.813278548 +0300
+@@ -851,6 +854,9 @@
+	case MV_IDENT_VALUE_6176:
+		model_str = MV_IDENT_STR_6176;
+		break;
++	case MV_IDENT_VALUE_6141:
++		model_str = MV_IDENT_STR_6141;
++		break;
+	case MV_IDENT_VALUE_6352:
+		model_str = MV_IDENT_STR_6352;
+		break;
+@@ -919,6 +930,7 @@
+	{ .compatible = "marvell,88e6171" },
+	{ .compatible = "marvell,88e6172" },
+	{ .compatible = "marvell,88e6176" },
++	{ .compatible = "marvell,88e6141" },
+	{ .compatible = "marvell,88e6352" },
+	{ }
+ };
+diff -Nru linux-4.9.30.copy/drivers/net/phy/mvsw61xx.h linux-4.9.30/drivers/net/phy/mvsw61xx.h
+--- linux-4.9.30.copy/drivers/net/phy/mvsw61xx.h	2017-06-08 13:40:06.306699611 +0300
++++ linux-4.9.30/drivers/net/phy/mvsw61xx.h	2017-07-24 19:55:23.205266613 +0300
+@@ -232,6 +232,9 @@
+ #define MV_IDENT_VALUE_6176		0x1760
+ #define MV_IDENT_STR_6176		"MV88E6176"
+
++#define MV_IDENT_VALUE_6141		0x3400
++#define MV_IDENT_STR_6141		"MV88E6141"
++
+ #define MV_IDENT_VALUE_6352		0x3520
+ #define MV_IDENT_STR_6352		"MV88E6352"
