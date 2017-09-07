@@ -290,22 +290,26 @@
 
 			port@1 {
 				reg = <1>;
-				label = "lan0";
+				label = "lan2";
+				phy-handle = <&switch0phy0>;
 			};
 
 			port@2 {
 				reg = <2>;
 				label = "lan1";
+				phy-handle = <&switch0phy1>;
 			};
 
 			port@3 {
 				reg = <3>;
-				label = "lan2";
+				label = "lan4";
+				phy-handle = <&switch0phy2>;
 			};
 
 			port@4 {
 				reg = <4>;
 				label = "lan3";
+				phy-handle = <&switch0phy3>;
 			};
 
 			port@5 {
@@ -313,18 +317,6 @@
 				label = "cpu";
 			};
 		};
-	};
-
-	mvsw61xx {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "marvell,88e6141";
-		status = "okay";
-		reg = <0x4>;
-		is-indirect;
-
-		mii-bus = <&mdio>;
-		cpu-port-0 = <5>;
 	};
 
 	gpio-keys {
@@ -387,6 +379,18 @@
 		 */
 		marvell,reg-init = <3 16 0 0x1017>;
 		reg = <0>;
+	};
+	switch0phy0: switch0phy0@11 {
+		reg = <0x11>;
+	};
+	switch0phy1: switch0phy1@12 {
+		reg = <0x12>;
+	};
+	switch0phy2: switch0phy2@13 {
+		reg = <0x13>;
+	};
+	switch0phy3: switch0phy3@14 {
+		reg = <0x14>;
 	};
 };
 
