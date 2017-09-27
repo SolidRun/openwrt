@@ -1,0 +1,19 @@
+--- a/drivers/iio/light/noa1305.c	2017-09-27 23:22:45.732200083 +0300
++++ b/drivers/iio/light/noa1305.c	2017-09-27 23:17:28.040192210 +0300
+@@ -43,6 +43,7 @@
+
+ #define NOA1305_DEVICE_ID		0x0519
+
++#define NOA1305_POWER_OFF		0x00
+ #define NOA1305_POWER_ON		0x08
+ #define NOA1305_POWER_DOWN		0x00
+ #define NOA1305_RESET			0x10
+@@ -134,6 +135,8 @@
+		return -ENODEV;
+	}
+
++	i2c_smbus_write_byte_data(client, NOA1305_REG_POWER_CONTROL, NOA1305_POWER_OFF);
++	msleep(100);
+	i2c_smbus_write_byte_data(client, NOA1305_REG_POWER_CONTROL, NOA1305_POWER_ON);
+	i2c_smbus_write_byte_data(client, NOA1305_REG_RESET, NOA1305_RESET);
+	i2c_smbus_write_byte_data(client, NOA1305_REG_INTEGRATION_TIME, NOA1305_INTEGR_TIME_200MS);
