@@ -1,0 +1,177 @@
+/*
+ * Device Tree file for Naeba machine front panel (88F6825)
+ *
+ *  Rabeeh Khoury <rabeeh@solid-run.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+&i2c0 {
+        pinctrl-0 = <&i2c0_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+	ambilight: ambilight@39 {
+		compatible = "on,noa1305";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x39>;
+	};
+	D1D2D3: leds@64 {
+		compatible = "issi,is31fl3199";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x64>;
+		D1B: D1B@1 {
+			label = "S4:blue";
+			reg = <1>;
+			led-max-microamp = <5000>;
+		};
+		D1G: D1G@1 {
+			label = "S4:green";
+			reg = <2>;
+			led-max-microamp = <5000>;
+		};
+		D1R: D1R@1 {
+			label = "S4:red";
+			reg = <3>;
+			led-max-microamp = <5000>;
+		};
+		D2B: D2B@1 {
+			label = "S5:blue";
+			reg = <4>;
+			led-max-microamp = <5000>;
+		};
+		D2G: D2G@1 {
+			label = "S5:green";
+			reg = <5>;
+			led-max-microamp = <5000>;
+		};
+		D2R: D2R@1 {
+			label = "S5:red";
+			reg = <6>;
+			led-max-microamp = <5000>;
+		};
+		D3B: D3B@1 {
+			label = "S6:blue";
+			reg = <7>;
+			led-max-microamp = <5000>;
+		};
+		D3G: D3G@1 {
+			label = "S6:green";
+			reg = <8>;
+			led-max-microamp = <5000>;
+		};
+		D3R: D3R@1 {
+			label = "S6:red";
+			reg = <9>;
+			led-max-microamp = <5000>;
+		};
+	};
+	D4D5D6: leds@67 {
+		compatible = "issi,is31fl3199";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x67>;
+		D6B: D6B@1 {
+			label = "S3:blue";
+			reg = <1>;
+			led-max-microamp = <5000>;
+		};
+		D6G: D6G@1 {
+			label = "S3:green";
+			reg = <2>;
+			led-max-microamp = <5000>;
+		};
+		D6R: D6R@1 {
+			label = "S3:red";
+			reg = <3>;
+			led-max-microamp = <5000>;
+		};
+		D5B: D5B@1 {
+			label = "S2:blue";
+			reg = <4>;
+			led-max-microamp = <5000>;
+		};
+		D5G: D5G@1 {
+			label = "S2:green";
+			reg = <5>;
+			led-max-microamp = <5000>;
+		};
+		D5R: D5R@1 {
+			label = "S2:red";
+			reg = <6>;
+			led-max-microamp = <5000>;
+		};
+		D4B: D4B@1 {
+			label = "S1:blue";
+			reg = <7>;
+			led-max-microamp = <5000>;
+		};
+		D4G: D4G@1 {
+			label = "S1:green";
+			reg = <8>;
+			led-max-microamp = <5000>;
+		};
+		D4R: D4R@1 {
+			label = "S1:red";
+			reg = <9>;
+			led-max-microamp = <5000>;
+		};
+	};
+	D7: leds@68 {
+		compatible = "issi,is31fl3193";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x68>;
+		D7B: D7B@1 {
+			label = "S7:blue";
+			reg = <1>;
+			led-max-microamp = <5000>;
+		};
+		D7G: D7G@1 {
+			label = "S7:green";
+			reg = <2>;
+			led-max-microamp = <5000>;
+		};
+		D7R: D7R@1 {
+			label = "S7:red";
+			reg = <3>;
+			led-max-microamp = <5000>;
+		};
+	};
+};
