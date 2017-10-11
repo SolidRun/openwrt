@@ -1,0 +1,11 @@
+--- a/drivers/net/dsa/mv88e6xxx/chip.c
++++ b/drivers/net/dsa/mv88e6xxx/chip.c
+@@ -3564,7 +3564,7 @@ static const struct mv88e6xxx_info mv88e
+		.num_ports = 6,
+		.port_base_addr = 0x10,
+		.global1_addr = 0x1b,
+-		.age_time_coeff = 15000,
++		.age_time_coeff = 3750,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
+		.ops = &mv88e6141_ops,
+	},
