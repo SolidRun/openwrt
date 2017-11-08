@@ -1,0 +1,43 @@
+From ed0c78003e3301177035c7542771836d38a25142 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Wed, 25 Oct 2017 14:51:31 +0300
+Subject: [PATCH] mvebu: a38x: Force receiver detected on PCIe lanes
+
+Some QCA988x based modules presence is not detected by the SERDES lanes,
+so force this detection which will trigger the LTSSM state machine to
+negotiate link.
+
+An example of such a card is WLE900VX
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ .../mach-mvebu/serdes/a38x/high_speed_env_spec.c   |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm/mach-mvebu/serdes/a38x/high_speed_env_spec.c b/arch/arm/mach-mvebu/serdes/a38x/high_speed_env_spec.c
+index 820219e..5fc2a21 100644
+--- a/arch/arm/mach-mvebu/serdes/a38x/high_speed_env_spec.c
++++ b/arch/arm/mach-mvebu/serdes/a38x/high_speed_env_spec.c
+@@ -598,6 +598,8 @@ struct op_params pex_electrical_config_serdes_rev2_params[] = {
+	{LANE_CFG4_REG, 0x800, 0x8, {0x8}, 0, 0},
+	/* tximpcal_th and rximpcal_th */
+	{VTHIMPCAL_CTRL_REG, 0x800, 0xff00, {0x3000}, 0, 0},
++	/* Force receiver detected */
++	{LANE_CFG0_REG, 0x800, 0x8000, {0x8000},0, 0},
+ };
+
+ /* PEX - configuration seq for REF_CLOCK_25MHz */
+--
+1.7.9.5
+
+diff -Nru u-boot-2017.03.orig/arch/arm/mach-mvebu/serdes/a38x/sys_env_lib.h u-boot-2017.03/arch/arm/mach-mvebu/serdes/a38x/sys_env_lib.h
+--- u-boot-2017.03.orig/arch/arm/mach-mvebu/serdes/a38x/sys_env_lib.h	2017-03-13 19:54:16.000000000 +0200
++++ u-boot-2017.03/arch/arm/mach-mvebu/serdes/a38x/sys_env_lib.h	2017-10-26 11:47:13.904760918 +0300
+@@ -73,6 +73,7 @@
+ #define RX_REG3				0xa0188
+ #define PCIE_REG1			0xa0288
+ #define PCIE_REG3			0xa0290
++#define LANE_CFG0_REG			0xa0600
+ #define LANE_CFG1_REG			0xa0604
+ #define LANE_CFG4_REG			0xa0620
+ #define LANE_CFG5_REG			0xa0624
