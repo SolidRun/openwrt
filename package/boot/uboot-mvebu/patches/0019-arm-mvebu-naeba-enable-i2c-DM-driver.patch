@@ -1,0 +1,50 @@
+From 9a51d3b7fc48e212acb857be6ef8ec812bbe5964 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 16 Nov 2017 22:04:30 +0200
+Subject: [PATCH] arm: mvebu: naeba - enable i2c DM driver
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ configs/naeba_defconfig |    5 ++++-
+ include/configs/naeba.h |    3 ---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/configs/naeba_defconfig b/configs/naeba_defconfig
+index f4ca78e..cbcf9f0 100644
+--- a/configs/naeba_defconfig
++++ b/configs/naeba_defconfig
+@@ -14,6 +14,10 @@ CONFIG_SYS_CONSOLE_INFO_QUIET=y
+ CONFIG_SPL=y
+ CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR=0x141
+ CONFIG_SPL_I2C_SUPPORT=y
++CONFIG_DM_I2C=y
++CONFIG_SYS_I2C_MVTWSI=y
++CONFIG_LED=y
++CONFIG_LED_IS31FL319X=y
+ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ # CONFIG_CMD_IMLS is not set
+@@ -21,7 +25,6 @@ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_SF=y
+ CONFIG_CMD_SPI=y
+-CONFIG_CMD_I2C=y
+ CONFIG_CMD_USB=y
+ # CONFIG_CMD_SETEXPR is not set
+ CONFIG_CMD_TFTPPUT=y
+diff --git a/include/configs/naeba.h b/include/configs/naeba.h
+index a4023e8..1761870 100644
+--- a/include/configs/naeba.h
++++ b/include/configs/naeba.h
+@@ -28,9 +28,6 @@
+ #define CONFIG_CMD_PCI
+
+ /* I2C */
+-#define CONFIG_SYS_I2C
+-#define CONFIG_SYS_I2C_MVTWSI
+-#define CONFIG_I2C_MVTWSI_BASE0		MVEBU_TWSI_BASE
+ #define CONFIG_SYS_I2C_SLAVE		0x0
+ #define CONFIG_SYS_I2C_SPEED		100000
+
+--
+1.7.9.5
