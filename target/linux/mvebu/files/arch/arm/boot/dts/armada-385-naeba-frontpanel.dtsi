@@ -174,4 +174,9 @@
 			led-max-microamp = <5000>;
 		};
 	};
+	/* U26 temperature sensor on front panel */
+	temp3: nct75@4e {
+		compatible = "lm75";
+		reg = <0x4e>;
+	};
 };
