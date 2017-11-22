@@ -339,11 +339,11 @@
 			label = "WPS Button";
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
-			linux,code = <KEY_WPS_BUTTON>;
+			linux,code = <BTN_1>;
 		};
 		button_2 {
 			/* The rear button button */
-			label = "Naeba Front Button";
+			label = "Front Button";
 			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
 			linux,code = <BTN_2>;
