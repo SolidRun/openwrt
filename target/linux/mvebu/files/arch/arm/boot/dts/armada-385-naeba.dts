@@ -108,6 +108,8 @@
 		ethernet1 = &eth0;
 		ethernet2 = &eth1;
 		ethernet3 = &eth2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 	};
 
 	chosen {
