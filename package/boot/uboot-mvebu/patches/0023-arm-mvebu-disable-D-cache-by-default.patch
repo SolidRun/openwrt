@@ -1,0 +1,36 @@
+From 2218221a9d9aa0cd90c632ade9d748be5d19956c Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 9 Jan 2018 19:33:58 +0200
+Subject: [PATCH 1/3] arm: mvebu: disable D-cache by default
+
+It's unclear if u-boot allocates DMAeable buffers in a way that it can prevent
+speculative cache prefetch to those buffers or not.
+
+While debugging mvneta driver on Marvell Armada 38x, it was observed that
+there are cases where the D-cache gets poluted.
+
+There wasn't any definitive resolution to this, but one of the speculation was
+that speculative cache prefetch on code that runs on totally different
+instructions would trigger a speculative d-cache prefetch to areas where
+packets are being received.
+
+Due to that D-cache is disabled by default.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ include/configs/mv-common.h |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/configs/mv-common.h b/include/configs/mv-common.h
+index 25562fa..e9031be 100644
+--- a/include/configs/mv-common.h
++++ b/include/configs/mv-common.h
+@@ -139,4 +139,6 @@
+ #define CONFIG_LZO
+ #endif
+
++/* Disable D-cache */
++#define CONFIG_SYS_DCACHE_OFF
+ #endif /* _MV_COMMON_H */
+--
+1.7.9.5

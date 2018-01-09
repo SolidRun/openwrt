@@ -1,0 +1,30 @@
+From a7cc2552c2a53c0ee837a62819f79cd0ff0ca1f9 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 9 Jan 2018 19:45:10 +0200
+Subject: [PATCH 3/3] arm: mvebu: dcache flush and reset TX descriptors on
+ mvneta initialization
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/mvneta.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/mvneta.c b/drivers/net/mvneta.c
+index 8052253..fe175ca 100644
+--- a/drivers/net/mvneta.c
++++ b/drivers/net/mvneta.c
+@@ -1624,9 +1624,12 @@ static int mvneta_probe(struct udevice *dev)
+	if (!buffer_loc.tx_descs) {
+		/* Align buffer area for descs and rx_buffers to 1MiB */
+		bd_space = memalign(1 << MMU_SECTION_SHIFT, BD_SPACE);
++		flush_dcache_range((ulong)bd_space, (ulong)bd_space+BD_SPACE);
++
+		mmu_set_region_dcache_behaviour((phys_addr_t)bd_space, BD_SPACE,
+						DCACHE_OFF);
+		buffer_loc.tx_descs = (struct mvneta_tx_desc *)bd_space;
++		memset (buffer_loc.tx_descs, 0, MVNETA_MAX_TXD * sizeof(struct mvneta_tx_desc));
+		buffer_loc.rx_descs = (struct mvneta_rx_desc *)
+			((phys_addr_t)bd_space +
+			 MVNETA_MAX_TXD * sizeof(struct mvneta_tx_desc));
+--
+1.7.9.5

@@ -1,0 +1,28 @@
+From c8fca4902830fd474d34f0c8532676c88dc9dd50 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 9 Jan 2018 20:06:11 +0200
+Subject: [PATCH] arm: mvebu: 1512 phy add more initialization
+
+The two register writes are taken from Marvell u-boot 2015 based u-boot.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/phy/marvell.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/phy/marvell.c b/drivers/net/phy/marvell.c
+index ab0c443..5e2c032 100644
+--- a/drivers/net/phy/marvell.c
++++ b/drivers/net/phy/marvell.c
+@@ -310,6 +310,9 @@ static int m88e1518_config(struct phy_device *phydev)
+	phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x214D);
+	phy_write(phydev, MDIO_DEVAD_NONE, 17, 0xCC0C);
+	phy_write(phydev, MDIO_DEVAD_NONE, 16, 0x2159);
++	phy_write(phydev, MDIO_DEVAD_NONE, 22, 0x00FB);
++	phy_write(phydev, MDIO_DEVAD_NONE, 07, 0xC00D);
++
+	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 0x0000);
+
+	/* SGMII-to-Copper mode initialization */
+--
+1.7.9.5

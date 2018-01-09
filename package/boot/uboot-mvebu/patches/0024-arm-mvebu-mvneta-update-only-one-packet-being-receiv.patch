@@ -1,0 +1,31 @@
+From 6ea22c63ab65a7b23eb43813e2f80d0abe799ea3 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Tue, 9 Jan 2018 19:37:56 +0200
+Subject: [PATCH 2/3] arm: mvebu: mvneta update only one packet being received
+
+The bug is that the driver updates the MAC that all rx_done packets have
+been processed, where only one have been processed.
+
+This bug causes packet loss, and on a congested network, or long tftpboot
+requets timeouts and loss of track on the RX queue (head and tail).
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/mvneta.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/mvneta.c b/drivers/net/mvneta.c
+index 674075f..8052253 100644
+--- a/drivers/net/mvneta.c
++++ b/drivers/net/mvneta.c
+@@ -1600,7 +1600,7 @@ static int mvneta_recv(struct udevice *dev, int flags, uchar **packetp)
+		 */
+		*packetp = data;
+
+-		mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
++		mvneta_rxq_desc_num_update(pp, rxq, 1, 1);
+	}
+
+	return rx_bytes;
+--
+1.7.9.5

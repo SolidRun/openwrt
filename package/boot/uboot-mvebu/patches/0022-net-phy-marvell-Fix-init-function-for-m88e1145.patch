@@ -1,0 +1,35 @@
+From ef621da7f87a4e6907276595dbb9b6eba8784ddf Mon Sep 17 00:00:00 2001
+From: York Sun <york.sun@nxp.com>
+Date: Tue, 6 Jun 2017 09:22:40 -0700
+Subject: [PATCH 2/2] net: phy: marvell: Fix init function for m88e1145
+
+Commit a058052c changed the generic phy_reset() to clear all bits in
+BMCR. This inevitably clears the ANEG bit. m88e1145 requires any
+change to ANEG bit to be followed by a software reset. This seems to
+be different from other PHYs. Implement read-modify-write procedure
+for this PHY init.
+
+Signed-off-by: York Sun <york.sun@nxp.com>
+Acked-by: Joe Hershberger <joe.hershberger@ni.com>
+---
+ drivers/net/phy/marvell.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/phy/marvell.c b/drivers/net/phy/marvell.c
+index 8041922..b7f300e 100644
+--- a/drivers/net/phy/marvell.c
++++ b/drivers/net/phy/marvell.c
+@@ -482,7 +482,10 @@ static int m88e1145_config(struct phy_device *phydev)
+
+	genphy_config_aneg(phydev);
+
+-	phy_reset(phydev);
++	/* soft reset */
++	reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
++	reg |= BMCR_RESET;
++	phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, reg);
+
+	return 0;
+ }
+--
+1.7.9.5
