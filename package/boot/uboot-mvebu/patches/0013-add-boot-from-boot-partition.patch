@@ -1,0 +1,38 @@
+--- a/common/spl/spl_mmc.c
++++ b/common/spl/spl_mmc.c
+@@ -334,6 +334,20 @@ int spl_mmc_load_image(struct spl_image_
+ 			if (!err)
+ 				return err;
+ 		}
++#ifdef CONFIG_SYS_MMCSD_RAW_MODE_BOOT_HWPART
++		if (CONFIG_IS_ENABLED(MMC_TINY))
++			err = mmc_switch_part(mmc, CONFIG_SYS_MMCSD_RAW_MODE_BOOT_HWPART);
++		else
++			err = blk_dselect_hwpart(mmc_get_blk_desc(mmc), CONFIG_SYS_MMCSD_RAW_MODE_BOOT_HWPART);
++
++		if (err) {
++#ifdef CONFIG_SPL_LIBCOMMON_SUPPORT
++			puts("spl: mmc partition switch failed\n");
++#endif
++			return err;
++		}
++#endif
++
+ #ifdef CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
+ 		err = mmc_load_image_raw_partition(spl_image, mmc,
+ 			CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION);
+--- a/common/spl/Kconfig
++++ b/common/spl/Kconfig
+@@ -126,6 +126,12 @@ config SYS_MMCSD_RAW_MODE_U_BOOT_PARTITI
+ 	  Partition Type on the MMC to load U-Boot from, when the MMC is being
+ 	  used in raw mode.
+ 
++config SYS_MMCSD_RAW_MODE_BOOT_HWPART
++	int "MMC hardware boot partition to load U-Boot from"
++	depends on SPL
++	help
++	  eMMC boot partition to use (1 for boot0, 2 for boot1)
++
+ config TPL
+ 	bool
+ 	depends on SPL && SUPPORT_TPL
