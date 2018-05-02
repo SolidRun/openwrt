@@ -1,0 +1,31 @@
+From e86da169f7da40113565c10a81840318a899b933 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 7 Sep 2017 20:24:56 +0300
+Subject: [PATCH] iio: light: add NOA1305 to Kconfig
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/iio/light/Kconfig |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/iio/light/Kconfig b/drivers/iio/light/Kconfig
+index ba2e64d..30724fd 100644
+--- a/drivers/iio/light/Kconfig
++++ b/drivers/iio/light/Kconfig
+@@ -366,4 +366,14 @@ config VEML6070
+	 To compile this driver as a module, choose M here: the
+	 module will be called veml6070.
+
++config NOA1305
++	tristate "ON Semiconductor NOA1305 ambient light sensor"
++	depends on I2C
++	help
++	 Say Y here if you want to build a driver for the NOA1305
++	 ambient light sensor.
++
++	 To compile this driver as a module, choose M here: the
++	 module will be called noa1305.
++
+ endmenu
+--
+1.7.9.5
