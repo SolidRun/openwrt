@@ -1,0 +1,388 @@
+From db38ffd290c624a111007090ee5ccf9d9f704c3e Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 16 Nov 2017 21:50:54 +0200
+Subject: [PATCH 1/2] dm: led: add is31fl319x LED driver support
+
+Adds is31fl319x LED driver support. Example DTS -
+	D7: leds@68 {
+		compatible = "issi,is31fl3193";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x68>;
+		D7B: D7B@1 {
+			label = "S7:blue";
+			reg = <1>;
+			led-max-microamp = <5000>;
+		};
+		D7G: D7G@1 {
+			label = "S7:green";
+			reg = <2>;
+			led-max-microamp = <5000>;
+		};
+		D7R: D7R@1 {
+			label = "S7:red";
+			reg = <3>;
+			led-max-microamp = <5000>;
+		};
+
+Notice that althgouth led-max-microamp is set per channel, only the lowest
+value holds.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/led/Kconfig          |    5 +
+ drivers/led/Makefile         |    1 +
+ drivers/led/led_is31fl319x.c |  316 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 322 insertions(+)
+ create mode 100644 drivers/led/led_is31fl319x.c
+
+diff --git a/drivers/led/Kconfig b/drivers/led/Kconfig
+index 609b1fa..aeb4873 100644
+--- a/drivers/led/Kconfig
++++ b/drivers/led/Kconfig
+@@ -33,6 +33,11 @@ config SPL_LED_GPIO
+ 	  This option is an SPL-variant of the LED_GPIO option.
+ 	  See the help of LED_GPIO for details.
+ 
++config LED_IS31FL319X
++	bool "I2C based IS31FL319X LED driver"
++	help
++	  This option enables I2C based IS31FL319X LED driver support
++
+ config LED_STATUS
+ 	bool "Enable status LED API"
+ 	help
+diff --git a/drivers/led/Makefile b/drivers/led/Makefile
+index 02367fd..f32e87a 100644
+--- a/drivers/led/Makefile
++++ b/drivers/led/Makefile
+@@ -7,3 +7,4 @@
+ 
+ obj-y += led-uclass.o
+ obj-$(CONFIG_$(SPL_)LED_GPIO) += led_gpio.o
++obj-$(CONFIG_$(SPL_)LED_IS31FL319X) += led_is31fl319x.o
+diff --git a/drivers/led/led_is31fl319x.c b/drivers/led/led_is31fl319x.c
+new file mode 100644
+index 0000000..aa4acbe
+--- /dev/null
++++ b/drivers/led/led_is31fl319x.c
+@@ -0,0 +1,316 @@
++/*
++ * Copyright 2017 SolidRun ltd.
++ *
++ * Author: Rabeeh Khoury <rabeeh@solid-run.com>
++ * Based on Linux kernel driver work from Nokolaus Schaller <hns@goldelico.com>
++ *
++ * SPDX-License-Identifier:	GPL-2.0+
++ * This file is subject to the terms and conditions of version 2 of
++ * the GNU General Public License.  See the file COPYING in the main
++ * directory of this archive for more details.
++ *
++ * LED driver for the IS31FL319{0,1,3,6,9} to drive 1, 3, 6 or 9 light
++ * effect LEDs.
++ *
++ */
++
++#include <common.h>
++#include <dm.h>
++#include <errno.h>
++#include <led.h>
++#include <i2c.h>
++#include <asm/gpio.h>
++#include <dm/lists.h>
++
++DECLARE_GLOBAL_DATA_PTR;
++
++/* register numbers */
++#define IS31FL319X_SHUTDOWN		0x00
++#define IS31FL319X_CTRL1		0x01
++#define IS31FL319X_CTRL2		0x02
++#define IS31FL319X_CONFIG1		0x03
++#define IS31FL319X_CONFIG2		0x04
++#define IS31FL319X_RAMP_MODE		0x05
++#define IS31FL319X_BREATH_MASK		0x06
++#define IS31FL319X_PWM(channel)		(0x07 + channel)
++#define IS31FL319X_DATA_UPDATE		0x10
++#define IS31FL319X_T0(channel)		(0x11 + channel)
++#define IS31FL319X_T123_1		0x1a
++#define IS31FL319X_T123_2		0x1b
++#define IS31FL319X_T123_3		0x1c
++#define IS31FL319X_T4(channel)		(0x1d + channel)
++#define IS31FL319X_TIME_UPDATE		0x26
++#define IS31FL319X_RESET		0xff
++
++#define IS31FL319X_REG_CNT		(IS31FL319X_RESET + 1)
++
++#define IS31FL319X_MAX_LEDS		9
++
++/* CS (Current Setting) in CONFIG2 register */
++#define IS31FL319X_CONFIG2_CS_SHIFT	4
++#define IS31FL319X_CONFIG2_CS_MASK	0x7
++#define IS31FL319X_CONFIG2_CS_STEP_REF	12
++
++#define IS31FL319X_CURRENT_MIN		((u32)5000)
++#define IS31FL319X_CURRENT_MAX		((u32)40000)
++#define IS31FL319X_CURRENT_STEP		((u32)5000)
++#define IS31FL319X_CURRENT_DEFAULT	((u32)20000)
++
++/* Audio gain in CONFIG2 register */
++#define IS31FL319X_AUDIO_GAIN_DB_MAX	((u32)21)
++#define IS31FL319X_AUDIO_GAIN_DB_STEP	((u32)3)
++
++/*
++ * regmap is used as a cache of chip's register space,
++ * to avoid reading back brightness values from chip,
++ * which is known to hang.
++ */
++struct led_is31fl319x_priv {
++	int num_leds;
++	fdt_addr_t i2c_addr;
++	u8 regmap[256]; /* Caching of 256 registers */
++	u32                             audio_gain_db;
++	u32				control_mode;
++	bool				configured;
++
++	struct is31fl319x_led {
++		struct			udevice *dev;
++		u32                     max_microamp;
++		bool                    configured;
++	} leds[IS31FL319X_MAX_LEDS];
++};
++
++/* is31fl319x family are write only devices. reads must be cached */
++int dm_i2c_reg_read_cached(struct udevice *dev, uint offset)
++{
++	struct led_is31fl319x_priv *priv = dev_get_priv(dev);
++	return priv->regmap[offset];
++}
++
++int dm_i2c_reg_write_cached(struct udevice *dev, uint offset, uint value)
++{
++	struct led_is31fl319x_priv *priv = dev_get_priv(dev);
++	priv->regmap[offset] = value;
++	return dm_i2c_reg_write(dev, offset, value);
++}
++
++/* Set the brightness of an output */
++static int is31fl319x_led_set_state(struct udevice *dev, enum led_state_t state)
++{
++	struct led_uc_plat *uc_plat = dev_get_uclass_platdata(dev);
++	struct udevice *parent;
++	struct led_is31fl319x_priv *priv;
++	int chan = 0;
++	int i;
++
++	if (!uc_plat->label)
++		return 0; /* Parent device. */
++
++	parent = dev_get_parent(dev);
++	priv = dev_get_priv(parent);
++
++	for (chan = 0 ; chan < priv->num_leds; chan++) {
++		if (dev == priv->leds[chan].dev)
++			break; /* Found a match */
++	}
++	if (chan == priv->num_leds)
++		return -EINVAL;
++
++	u8 ctrl1 = 0, ctrl2 = 0;
++
++	/* update PWM register */
++	dm_i2c_reg_write_cached(parent, IS31FL319X_PWM(chan),
++		(state == LEDST_OFF) ? 0 : 255);
++
++	/* read current brightness of all PWM channels */
++	for (i = 0; i < priv->num_leds; i++) {
++		unsigned int pwm_value;
++		bool on;
++
++		/*
++		 * since neither cdev nor the chip can provide
++		 * the current setting, we read from the regmap cache
++		 */
++
++		pwm_value = dm_i2c_reg_read_cached(parent, IS31FL319X_PWM(i));
++		on = (pwm_value > 0) ? 1 : 0;
++
++		if (i < 3)
++			ctrl1 |= on << i;       /* 0..2 => bit 0..2 */
++		else if (i < 6)
++			ctrl1 |= on << (i + 1); /* 3..5 => bit 4..6 */
++		else
++			ctrl2 |= on << (i - 6); /* 6..8 => bit 0..2 */
++	}
++
++	if (ctrl1 > 0 || ctrl2 > 0) {
++		dm_i2c_reg_write_cached(parent, IS31FL319X_CTRL1, ctrl1);
++		dm_i2c_reg_write_cached(parent, IS31FL319X_CTRL2, ctrl2);
++		/* update PWMs */
++		dm_i2c_reg_write_cached(parent, IS31FL319X_DATA_UPDATE, 0x00);
++		/* enable chip from shut down */
++		dm_i2c_reg_write_cached(parent, IS31FL319X_SHUTDOWN, 0x01);
++	} else {
++		/* shut down (no need to clear CTRL1/2) */
++		dm_i2c_reg_write_cached(parent, IS31FL319X_SHUTDOWN, 0x00);
++	}
++
++	return 0;
++}
++
++static inline int is31fl319x_db_to_gain(u32 db)
++{ /* round down to nearest supported value (range check done by caller) */
++	return db / IS31FL319X_AUDIO_GAIN_DB_STEP;
++}
++
++static inline int is31fl319x_microamp_to_cs(u32 microamp)
++{ /* round down to nearest supported value (range check done by caller) */
++	u32 step = microamp / IS31FL319X_CURRENT_STEP;
++
++	return ((IS31FL319X_CONFIG2_CS_STEP_REF - step) &
++		IS31FL319X_CONFIG2_CS_MASK) <<
++		IS31FL319X_CONFIG2_CS_SHIFT; /* CS encoding */
++}
++
++/* dev must point to parent udevice structure */
++void update_microamp_and_db(struct udevice *parent)
++{
++	int i;
++	struct led_is31fl319x_priv *priv;
++	u8 value;
++	priv = dev_get_priv(parent);
++	u32 aggregated_led_microamp = IS31FL319X_CURRENT_MAX;
++	for (i = 0; i < priv->num_leds; i++)
++		if (priv->leds[i].configured &&
++		    priv->leds[i].max_microamp < aggregated_led_microamp)
++			aggregated_led_microamp = priv->leds[i].max_microamp;
++	value = is31fl319x_microamp_to_cs(aggregated_led_microamp) |
++		is31fl319x_db_to_gain(priv->audio_gain_db) |
++		(priv->control_mode << 7);
++	dm_i2c_reg_write_cached(parent, IS31FL319X_CONFIG2, value);
++}
++
++
++static int led_is31fl319x_probe(struct udevice *dev)
++{
++	const void *blob = gd->fdt_blob;
++	struct udevice *parent;
++	struct led_uc_plat *uc_plat = dev_get_uclass_platdata(dev);
++	struct led_is31fl319x_priv *priv;
++	int val, microamp;
++	fdt_addr_t addr, control_mode;
++	ulong driver_data;
++
++	if (!uc_plat->label) { /* Parent device is the actual controller */
++		parent = dev;
++		priv = dev_get_priv(parent);
++		addr = fdtdec_get_addr(blob, dev_of_offset(parent), "reg");
++
++		if (addr == FDT_ADDR_T_NONE)
++			return -EINVAL;
++
++		driver_data = dev_get_driver_data(parent);
++		if ((driver_data <= 0) || (driver_data > IS31FL319X_MAX_LEDS))
++			return -EINVAL;
++
++		priv->audio_gain_db = 0;
++		priv->audio_gain_db = fdtdec_get_int(blob,
++			dev_of_offset(parent), "audio-gain-db", 0);
++		priv->audio_gain_db = min(priv->audio_gain_db,
++			IS31FL319X_AUDIO_GAIN_DB_MAX);
++		priv->num_leds = driver_data;
++		priv->i2c_addr = addr;
++		priv->control_mode = 0x1; /* Slave by default */
++		control_mode = fdtdec_get_addr(blob, dev_of_offset(parent),
++			"control-mode");
++		if (control_mode != FDT_ADDR_T_NONE)
++			if (control_mode == 0x0) priv->control_mode = 0x0;
++		/* Reset */
++		dm_i2c_reg_write_cached(parent, IS31FL319X_RESET, 0x00);
++		/* Set it to be slave */
++		dm_i2c_reg_write_cached(parent, IS31FL319X_CONFIG2,
++			priv->control_mode << 7);
++		priv->configured = true;
++		return 0;
++	} else { /* Child is the LED */
++		parent = dev_get_parent(dev);
++		priv = dev_get_priv(parent);
++		val = fdtdec_get_int(blob, dev_of_offset(dev), "reg", -1);
++		val -= 1; /* reg starts from 1, where val from 0 */
++		if ((val < 0) || (val > priv->num_leds)) {
++			printf("Error in FDT (LED = %d)\n", val);
++			return -EINVAL;
++		}
++		priv->leds[val].configured = true;
++		priv->leds[val].dev = dev;
++		microamp = fdtdec_get_int(blob, dev_of_offset(dev),
++			"led-max-microamp", -1);
++		if (microamp != -1)
++			priv->leds[val].max_microamp = microamp;
++		update_microamp_and_db(parent);
++		return 0;
++	}
++}
++
++static int led_is31fl319x_remove(struct udevice *dev)
++{
++	return 0;
++}
++
++static int led_is31fl319x_bind(struct udevice *parent)
++{
++	const void *blob = gd->fdt_blob;
++	struct udevice *dev;
++	int node;
++	int ret;
++
++	for (node = fdt_first_subnode(blob, dev_of_offset(parent));
++	     node > 0;
++	     node = fdt_next_subnode(blob, node)) {
++		struct led_uc_plat *uc_plat;
++		const char *label;
++
++		label = fdt_getprop(blob, node, "label", NULL);
++		if (!label) {
++			debug("%s: node %s has no label\n", __func__,
++			      fdt_get_name(blob, node, NULL));
++			return -EINVAL;
++		}
++		/* Notice recursive call */
++		ret = device_bind_driver_to_node(parent,
++			"is31fl319x_led_driver",
++			fdt_get_name(blob, node, NULL),
++			offset_to_ofnode(node), &dev);
++		if (ret)
++			return ret;
++
++		uc_plat = dev_get_uclass_platdata(dev);
++		uc_plat->label = label;
++	}
++	return 0;
++}
++
++static const struct led_ops is31fl319x_led_ops = {
++	.set_state		= is31fl319x_led_set_state,
++};
++
++static const struct udevice_id led_is31fl319x_ids[] = {
++	{ .compatible = "issi,is31fl3190", .data = 0, },
++	{ .compatible = "issi,is31fl3191", .data = 1, },
++	{ .compatible = "issi,is31fl3193", .data = 3, },
++	{ .compatible = "issi,is31fl3196", .data = 6, },
++	{ .compatible = "issi,is31fl3199", .data = 9, },
++	{ .compatible = "si-en,sn3199",    .data = 9, },
++	{ }
++};
++
++U_BOOT_DRIVER(led_is31fl319x) = {
++	.name	= "is31fl319x_led_driver",
++	.id	= UCLASS_LED,
++	.of_match = led_is31fl319x_ids,
++	.ops	= &is31fl319x_led_ops,
++	.priv_auto_alloc_size = 0,
++	.bind	= led_is31fl319x_bind,
++	.probe	= led_is31fl319x_probe,
++	.remove	= led_is31fl319x_remove,
++};
+-- 
+1.7.9.5
+
