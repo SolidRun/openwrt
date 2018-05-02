@@ -1,0 +1,47 @@
+From ec1a6565425e7c84bde03b7d5583f17b7aa777c7 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 22 Feb 2018 07:26:03 +0200
+Subject: [PATCH] leds: optimize number of writes in ISSI LEDs driver
+
+Instead of writing ctrl1, ctrl2 and shutdown registers on every write; first
+read the cached values and accordingly write the registers.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/leds/leds-is31fl319x.c |   15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/leds/leds-is31fl319x.c b/drivers/leds/leds-is31fl319x.c
+index f123309..683c40c 100644
+--- a/drivers/leds/leds-is31fl319x.c
++++ b/drivers/leds/leds-is31fl319x.c
+@@ -152,14 +152,23 @@ static int is31fl319x_brightness_set(struct led_classdev *cdev,
+ 	}
+ 
+ 	if (ctrl1 > 0 || ctrl2 > 0) {
++		unsigned int ctrl1_in_device, ctrl2_in_device,
++			shutdown_in_device;
++		regmap_read(is31->regmap, IS31FL319X_CTRL1, &ctrl1_in_device);
++		regmap_read(is31->regmap, IS31FL319X_CTRL2, &ctrl2_in_device);
++		regmap_read(is31->regmap, IS31FL319X_SHUTDOWN,
++			&shutdown_in_device);
+ 		dev_dbg(&is31->client->dev, "power up %02x %02x\n",
+ 			ctrl1, ctrl2);
+-		regmap_write(is31->regmap, IS31FL319X_CTRL1, ctrl1);
+-		regmap_write(is31->regmap, IS31FL319X_CTRL2, ctrl2);
++		if (ctrl1 != ctrl1_in_device)
++			regmap_write(is31->regmap, IS31FL319X_CTRL1, ctrl1);
++		if (ctrl2 != ctrl2_in_device)
++			regmap_write(is31->regmap, IS31FL319X_CTRL2, ctrl2);
+ 		/* update PWMs */
+ 		regmap_write(is31->regmap, IS31FL319X_DATA_UPDATE, 0x00);
+ 		/* enable chip from shut down */
+-		ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x01);
++		if (shutdown_in_device != 0x01)
++			ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x01);
+ 	} else {
+ 		dev_dbg(&is31->client->dev, "power down\n");
+ 		/* shut down (no need to clear CTRL1/2) */
+-- 
+1.7.9.5
+

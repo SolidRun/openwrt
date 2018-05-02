@@ -1,0 +1,497 @@
+From 14b8b393693ccfa76cf78db5ebc7df056acae273 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Wed, 4 Apr 2018 14:46:21 +0300
+Subject: [PATCH] leds: is31fl319x: expose all device features
+
+This patch exposes all is31fl319x features by adding attributes to it's
+i2c sysfs entries.
+
+The features exposed -
+1. Configure each device to be master/slave (for syncing breath mode).
+   By default all devices are set to slave, and can set to be master by adding
+   the following in the platform's device tree -
+   control-mode = <0x0>; /* Master */
+2. Configure the current setting field in microamp. Note that the driver will
+   refuse to set the current more than what is configured in the device tree.
+3. Configure the channels mode to be PWM or RGB mode.
+4. Set timing in RGB mode (T0 for all channels, then T1,T2,T3 and T4 for all
+   channels).
+   In order for the timing setting to take place any value needs to be written
+   to time_update file in sysfs.
+5. Enable and set AGS and audio modulation in sysfs.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/leds/leds-is31fl319x.c |  412 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 410 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/leds/leds-is31fl319x.c b/drivers/leds/leds-is31fl319x.c
+index 683c40c..e64b94d 100644
+--- a/drivers/leds/leds-is31fl319x.c
++++ b/drivers/leds/leds-is31fl319x.c
+@@ -68,6 +68,8 @@ struct is31fl319x_chip {
+ 	struct regmap                   *regmap;
+ 	struct mutex                    lock;
+ 	u32                             audio_gain_db;
++	u32				control_mode;
++	u32				aggregated_max_led_microamp;
+ 
+ 	struct is31fl319x_led {
+ 		struct is31fl319x_chip  *chip;
+@@ -108,6 +110,9 @@ struct is31fl319x_chipdef {
+ };
+ MODULE_DEVICE_TABLE(of, of_is31fl319x_match);
+ 
++static inline int is31fl319x_microamp_to_cs(struct device *dev, u32 microamp);
++static inline int is31fl319x_cs_to_microamp(struct device *dev, u32 cs);
++
+ static int is31fl319x_brightness_set(struct led_classdev *cdev,
+ 				     enum led_brightness brightness)
+ {
+@@ -277,6 +282,8 @@ static int is31fl319x_parse_dt(struct device *dev,
+ 	if (!ret)
+ 		is31->audio_gain_db = min(is31->audio_gain_db,
+ 					  IS31FL319X_AUDIO_GAIN_DB_MAX);
++	is31->control_mode = 1; /* By default set all as slaves */
++	of_property_read_u32(np, "control-mode", &is31->control_mode);
+ 
+ 	return 0;
+ 
+@@ -327,6 +334,389 @@ static bool is31fl319x_volatile_reg(struct device *dev, unsigned int reg)
+ 	.num_reg_defaults = ARRAY_SIZE(is31fl319x_reg_defaults),
+ };
+ 
++static ssize_t is31fl319x_show_pwm_mode(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	unsigned int ctrl1;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++
++	regmap_read(is31->regmap, IS31FL319X_CTRL1, &ctrl1);
++	if (!strncmp(attr->attr.name, "rgb1mode", 4))
++		return sprintf(buf, "%d", (ctrl1 >> 4) & 1);
++	if (!strncmp(attr->attr.name, "rgb2mode", 4))
++		return sprintf(buf, "%d", (ctrl1 >> 5) & 1);
++	if (!strncmp(attr->attr.name, "rgb3mode", 4))
++		return sprintf(buf, "%d", (ctrl1 >> 6) & 1);
++	return 0;
++}
++
++static ssize_t is31fl319x_store_microamp(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	unsigned int config2, config2_tmp;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	unsigned long val;
++	unsigned int cs;
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &config2);
++	cs = (config2 >> 4) & 0x7;
++	if (kstrtoul(buf, 0, &val))
++		return -EINVAL;
++
++	if (val > is31->aggregated_max_led_microamp)
++		return -EINVAL;
++
++	/* Round input value to up */
++	val = roundup(val, IS31FL319X_CURRENT_STEP);
++	/* Check for marginal case if val = 0 */
++	val = max_t(u32, val, IS31FL319X_CURRENT_STEP);
++	/* Convert microamp to cs (result already shifter 4 bits left) */
++	cs = is31fl319x_microamp_to_cs(dev, val);
++	config2_tmp = config2 & 0x8f;
++	config2_tmp |= cs;
++
++	if (config2_tmp != config2)
++		regmap_write(is31->regmap, IS31FL319X_CONFIG2, config2_tmp);
++
++	return len;
++}
++
++static ssize_t is31fl319x_show_microamp(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	unsigned int reg;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &reg);
++	return sprintf(buf, "%d",
++		is31fl319x_cs_to_microamp(dev, (reg >> 4) & 0x7));
++}
++
++
++static ssize_t is31fl319x_store_ags_mode(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	unsigned int config2, config2_tmp;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	unsigned long val;
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &config2);
++
++	if (kstrtoul(buf, 0, &val))
++		return -EINVAL;
++
++	if (val >= 8)
++		return -EINVAL;
++
++	config2_tmp = config2 & 0xf8;
++	config2_tmp += val;
++
++	if (config2_tmp != config2)
++		regmap_write(is31->regmap, IS31FL319X_CONFIG2, config2_tmp);
++
++	return len;
++}
++
++static ssize_t is31fl319x_show_control_mode(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	unsigned int reg;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &reg);
++	return sprintf(buf, "0x%x", (reg >> 7) & 0x1);
++}
++
++static ssize_t is31fl319x_store_control_mode(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	unsigned int config2, config2_tmp;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	unsigned long val;
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &config2);
++
++	if (kstrtoul(buf, 0, &val))
++		return -EINVAL;
++
++	if (val > 1)
++		return -EINVAL;
++
++	config2_tmp = config2 & 0x7f;
++	config2_tmp |= (val << 7);
++
++	if (config2_tmp != config2)
++		regmap_write(is31->regmap, IS31FL319X_CONFIG2, config2_tmp);
++
++	return len;
++}
++
++static ssize_t is31fl319x_show_ags_mode(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	unsigned int reg;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG2, &reg);
++	return sprintf(buf, "0x%x", reg & 0x7);
++}
++
++
++static ssize_t is31fl319x_store_pwm_mode(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	unsigned int config1, config1_tmp;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	unsigned long val;
++
++	regmap_read(is31->regmap, IS31FL319X_CONFIG1, &config1);
++	config1_tmp = config1;
++
++	if (kstrtoul(buf, 0, &val))
++		return -EINVAL;
++
++	if ((val != 0) && (val != 1))
++		return -EINVAL;
++
++	if (val == 0) {
++		if (!strncmp(attr->attr.name, "rgb1mode", 4))
++			config1_tmp &= 0xef;
++		else if (!strncmp(attr->attr.name, "rgb2mode", 4))
++			config1_tmp &= 0xdf;
++		else if (!strncmp(attr->attr.name, "rgb3mode", 4))
++			config1_tmp &= 0xbf;
++		else if (!strncmp(attr->attr.name, "agcm", 4))
++			config1_tmp &= 0xfe;
++		else if (!strncmp(attr->attr.name, "agce", 4))
++			config1_tmp &= 0xfd;
++		else if (!strncmp(attr->attr.name, "audm", 4))
++			config1_tmp &= 0xfb;
++		else
++			return -EINVAL;
++	}
++	if (val == 1) {
++		if (!strncmp(attr->attr.name, "rgb1mode", 4))
++			config1_tmp |= 0x10;
++		else if (!strncmp(attr->attr.name, "rgb2mode", 4))
++			config1_tmp |= 0x20;
++		else if (!strncmp(attr->attr.name, "rgb3mode", 4))
++			config1_tmp |= 0x40;
++		else if (!strncmp(attr->attr.name, "agcm", 4))
++			config1_tmp |= 0x1;
++		else if (!strncmp(attr->attr.name, "agce", 4))
++			config1_tmp |= 0x2;
++		else if (!strncmp(attr->attr.name, "audm", 4))
++			config1_tmp |= 0x4;
++		else
++			return -EINVAL;
++	}
++	if (config1_tmp != config1)
++		regmap_write(is31->regmap, IS31FL319X_CONFIG1, config1_tmp);
++
++	return len;
++}
++
++int is31fl319x_timing_get_offset(const char *buf, struct device_attribute *attr)
++{
++	char cmp[2];
++	int idx1, idx2, offset;
++	unsigned long val;
++	/* time_t0_chn1*/
++	cmp[1] = 0;
++	cmp[0] = attr->attr.name[6];
++	if (kstrtoul(cmp, 0, &val))
++		return -EINVAL;
++	if (val > 4)
++		return -EINVAL;
++	idx1 = val; /* t0, t1, t2, t3, t4 */
++	if (idx1 == 1)
++		cmp[0] = attr->attr.name[13];
++	else
++		cmp[0] = attr->attr.name[11];
++	if (kstrtoul(cmp, 0, &val))
++		return -EINVAL;
++	idx2 = val;
++	if (idx2 == 0)
++		return -EINVAL;
++	if ((idx1 == 0) || (idx1 == 4))
++		if (val > 9)
++			return -EINVAL;
++
++	/* Calculate register offset */
++	if (idx1 == 0) /* T0 */
++		offset = IS31FL319X_T0(idx2 - 1);
++	else if (idx1 == 4) /* T4 */
++		offset = IS31FL319X_T4(idx2 - 1);
++	else /* T1, T2, T3 */
++		offset = IS31FL319X_T123_1 + idx2 - 1; /* T1 is 0x1a */
++	return offset;
++}
++static ssize_t is31fl319x_show_per_ch_tm(struct device *dev,
++			    struct device_attribute *attr,
++			    char *buf)
++{
++	unsigned int reg;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	int offset;
++
++	offset = is31fl319x_timing_get_offset(buf, attr);
++	if (offset < 0)
++		return offset;
++	regmap_read(is31->regmap, offset, &reg);
++	return sprintf(buf, "0x%x", reg);
++}
++
++static ssize_t is31fl319x_store_per_ch_tm(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++{
++	unsigned long val;
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++	int offset;
++
++	offset = is31fl319x_timing_get_offset(buf, attr);
++
++	if (offset < 0)
++		return offset;
++
++	if (kstrtoul(buf, 0, &val))
++		return -EINVAL;
++
++	if (val > 255)
++		return -EINVAL;
++
++	regmap_write(is31->regmap, offset, val);
++
++	return len;
++}
++
++
++static ssize_t is31fl319x_write_timing(struct device *dev,
++			     struct device_attribute *attr,
++			     const char *buf, size_t len)
++
++{
++	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
++
++	regmap_write(is31->regmap, IS31FL319X_TIME_UPDATE, 0x0);
++
++	return len;
++}
++static DEVICE_ATTR(rgb1mode, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(rgb2mode, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(rgb3mode, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(agcm, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(agce, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(audm, 0644,
++		   is31fl319x_show_pwm_mode, is31fl319x_store_pwm_mode);
++static DEVICE_ATTR(time_t0_chn1, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn2, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn3, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn4, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn5, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn6, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn7, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn8, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t0_chn9, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t123_rgb1, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t123_rgb2, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t123_rgb3, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn1, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn2, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn3, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn4, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn5, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn6, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn7, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn8, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(time_t4_chn9, 0644,
++		   is31fl319x_show_per_ch_tm, is31fl319x_store_per_ch_tm);
++static DEVICE_ATTR(audio_gain_selection, 0644,
++		   is31fl319x_show_ags_mode, is31fl319x_store_ags_mode);
++static DEVICE_ATTR(control_mode, 0644,
++		   is31fl319x_show_control_mode, is31fl319x_store_control_mode);
++static DEVICE_ATTR(time_update, 0200, NULL, is31fl319x_write_timing);
++static DEVICE_ATTR(current_setting, 0644,
++		   is31fl319x_show_microamp, is31fl319x_store_microamp);
++
++static struct attribute *is31fl319x_attributes[] = {
++	/* Config1 register */
++	&dev_attr_rgb1mode.attr,
++	&dev_attr_rgb2mode.attr,
++	&dev_attr_rgb3mode.attr,
++	&dev_attr_agcm.attr,
++	&dev_attr_agce.attr,
++	&dev_attr_audm.attr,
++	/* T0..T4 registers */
++	&dev_attr_time_t0_chn1.attr,
++	&dev_attr_time_t0_chn2.attr,
++	&dev_attr_time_t0_chn3.attr,
++	&dev_attr_time_t0_chn4.attr,
++	&dev_attr_time_t0_chn5.attr,
++	&dev_attr_time_t0_chn6.attr,
++	&dev_attr_time_t0_chn7.attr,
++	&dev_attr_time_t0_chn8.attr,
++	&dev_attr_time_t0_chn9.attr,
++	&dev_attr_time_t123_rgb1.attr,
++	&dev_attr_time_t123_rgb2.attr,
++	&dev_attr_time_t123_rgb3.attr,
++	&dev_attr_time_t4_chn1.attr,
++	&dev_attr_time_t4_chn2.attr,
++	&dev_attr_time_t4_chn3.attr,
++	&dev_attr_time_t4_chn4.attr,
++	&dev_attr_time_t4_chn5.attr,
++	&dev_attr_time_t4_chn6.attr,
++	&dev_attr_time_t4_chn7.attr,
++	&dev_attr_time_t4_chn8.attr,
++	&dev_attr_time_t4_chn9.attr,
++	/* Update timing */
++	&dev_attr_time_update.attr,
++	/* Audio gain selection */
++	&dev_attr_audio_gain_selection.attr,
++	/* Master / Slave control mode */
++	&dev_attr_control_mode.attr,
++	/* Current settings */
++	&dev_attr_current_setting.attr,
++	NULL,
++};
++
++static const struct attribute_group is31fl319x_attr_group = {
++	.attrs = is31fl319x_attributes,
++};
++
+ static inline int is31fl319x_microamp_to_cs(struct device *dev, u32 microamp)
+ { /* round down to nearest supported value (range check done by caller) */
+ 	u32 step = microamp / IS31FL319X_CURRENT_STEP;
+@@ -336,6 +726,18 @@ static inline int is31fl319x_microamp_to_cs(struct device *dev, u32 microamp)
+ 		IS31FL319X_CONFIG2_CS_SHIFT; /* CS encoding */
+ }
+ 
++static inline int is31fl319x_cs_to_microamp(struct device *dev, u32 cs)
++{
++	u32 microamp;
++
++	if (cs <= 3)
++		cs += 8;
++
++	microamp = (12-cs) * IS31FL319X_CURRENT_STEP;
++
++	return microamp;
++}
++
+ static inline int is31fl319x_db_to_gain(u32 dezibel)
+ { /* round down to nearest supported value (range check done by caller) */
+ 	return dezibel / IS31FL319X_AUDIO_GAIN_DB_STEP;
+@@ -393,10 +795,12 @@ static int is31fl319x_probe(struct i2c_client *client,
+ 		    is31->leds[i].max_microamp < aggregated_led_microamp)
+ 			aggregated_led_microamp = is31->leds[i].max_microamp;
+ 
++	is31->aggregated_max_led_microamp = aggregated_led_microamp;
++
+ 	regmap_write(is31->regmap, IS31FL319X_CONFIG2,
+ 		     is31fl319x_microamp_to_cs(dev, aggregated_led_microamp) |
+-		     is31fl319x_db_to_gain(is31->audio_gain_db));
+-
++		     is31fl319x_db_to_gain(is31->audio_gain_db) |
++		     ((is31->control_mode & 0x1) << 7));
+ 	for (i = 0; i < is31->cdef->num_leds; i++) {
+ 		struct is31fl319x_led *led = &is31->leds[i];
+ 
+@@ -411,6 +815,10 @@ static int is31fl319x_probe(struct i2c_client *client,
+ 			goto free_mutex;
+ 	}
+ 
++	err = sysfs_create_group(&dev->kobj, &is31fl319x_attr_group);
++	if (err)
++		goto free_mutex;
++
+ 	return 0;
+ 
+ free_mutex:
+-- 
+1.7.9.5
+
