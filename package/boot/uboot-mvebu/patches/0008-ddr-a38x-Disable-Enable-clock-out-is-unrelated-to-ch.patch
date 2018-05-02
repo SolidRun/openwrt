@@ -1,0 +1,45 @@
+From 38f024ea11a8bf861a1ede542dadabb24b661551 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Mon, 10 Jul 2017 19:52:56 +0300
+Subject: [PATCH] ddr: a38x: Disable/Enable clock out is unrelated to chip
+ select
+
+A38x has two DDR clock out signals that are enabled after power on.
+Those are unrelated to the number of chip selects being used.
+
+For instance Naeba board uses single chip select but two DDR components
+where the first uses clk #0 and the second uses clk #1.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/ddr/marvell/a38x/ddr3_training.c |   15 ---------------
+ 1 file changed, 15 deletions(-)
+
+diff --git a/drivers/ddr/marvell/a38x/ddr3_training.c b/drivers/ddr/marvell/a38x/ddr3_training.c
+index 7e0749f..3735413 100644
+--- a/drivers/ddr/marvell/a38x/ddr3_training.c
++++ b/drivers/ddr/marvell/a38x/ddr3_training.c
+@@ -238,21 +238,6 @@ int ddr3_tip_configure_cs(u32 dev_num, u32 if_id, u32 cs_num, u32 enable)
+			      SDRAM_ACCESS_CONTROL_REG, 1 << (16 + cs_num),
+			      1 << (16 + cs_num)));
+	}
+-	switch (cs_num) {
+-	case 0:
+-	case 1:
+-	case 2:
+-		CHECK_STATUS(ddr3_tip_if_write
+-			     (dev_num, ACCESS_TYPE_UNICAST, if_id,
+-			      DDR_CONTROL_LOW_REG, (enable << (cs_num + 11)),
+-			      1 << (cs_num + 11)));
+-		break;
+-	case 3:
+-		CHECK_STATUS(ddr3_tip_if_write
+-			     (dev_num, ACCESS_TYPE_UNICAST, if_id,
+-			      DDR_CONTROL_LOW_REG, (enable << 15), 1 << 15));
+-		break;
+-	}
+
+	return MV_OK;
+ }
+--
+1.7.9.5
