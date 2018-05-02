@@ -71,6 +71,9 @@ mvebu_board_detect() {
 	*"Turris Omnia")
 		name="armada-385-turris-omnia"
 		;;
+	*"Naeba machine")
+		name="armada-385-naeba"
+		;;
 	esac
 
 	[ -z "$name" ] && name="unknown"
