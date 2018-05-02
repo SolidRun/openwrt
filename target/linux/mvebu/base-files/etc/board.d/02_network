@@ -48,6 +48,16 @@ globalscale,espressobin)
 marvell,armada8040-mcbin)
 	ucidef_set_interfaces_lan_wan "eth0 eth1 eth3" "eth2"
 	;;
+armada-385-naeba)
+	# eth0 is standalone ethernet
+	# eth1 is Topaz switch
+	# eth2 is SFP
+	ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "eth0 eth2"
+
+	ucidef_add_switch "switch0" \
+		"1:lan:0" "2:lan:1" "3:lan:2" "4:lan:3" "5u@eth1"
+	;;
+
 *)
 	ucidef_set_interface_lan "eth0"
 	;;

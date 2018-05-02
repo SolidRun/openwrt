@@ -137,6 +137,23 @@ define Device/armada-388-clearfog-base
 endef
 TARGET_DEVICES += armada-388-clearfog-base
 
+define Device/armada-385-naeba
+  KERNEL_INSTALL := 1
+  KERNEL := kernel-bin
+  DEVICE_TITLE := Naeba machine
+  DEVICE_PACKAGES := \
+    kmod-nls-cp437 kmod-nls-iso8859-1 swconfig \
+    mkf2fs e2fsprogs kmod-fs-vfat kmod-fuse kmod-fs-f2fs \
+    kmod-ata-core kmod-ata-ahci kmod-ata-marvell-sata kmod-scsi-core kmod-scsi-generic \
+    kmod-button-hotplug kmod-gpio-button-hotplug
+  IMAGES := sdcard.img.gz
+  IMAGE/sdcard.img.gz := boot-scr-naeba | partition3 | partition2 | partition1 | partition4 | sdcard-img-naeba | gzip | append-metadata
+  IMAGE_NAME = $$(IMAGE_PREFIX)-$$(2)
+  DEVICE_DTS := armada-385-naeba
+  UBOOT := naeba-u-boot-spl.kwb
+endef
+TARGET_DEVICES += armada-385-naeba
+
 define Device/globalscale-mirabox
   $(Device/NAND-512K)
   DEVICE_DTS := armada-370-mirabox
