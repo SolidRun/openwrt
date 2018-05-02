@@ -1,0 +1,47 @@
+From e1cb69b51687d55029abeee07fdef197a0a86dca Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Sun, 11 Mar 2018 15:57:44 +0200
+Subject: [PATCH] mvebu: a38x: disable i2c slave in SPL
+
+Disable i2c slave component on i2c0 in SPL stage.
+This is used only to debug the SoC in case of failures and doesn't meet
+faster i2c speed beyond 100khz.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ arch/arm/mach-mvebu/spl.c |   12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-mvebu/spl.c b/arch/arm/mach-mvebu/spl.c
+index 3cf02a5..c17defa 100644
+--- a/arch/arm/mach-mvebu/spl.c
++++ b/arch/arm/mach-mvebu/spl.c
+@@ -49,6 +49,14 @@ static u32 get_boot_device(void)
+ 	};
+ }
+ 
++static void disable_debug_i2c_slave(void)
++{
++	u32 val;
++	val = readl(MVEBU_REGISTER(0x1108c));
++	val &= 0xfffbffff;
++	writel(val, MVEBU_REGISTER(0x1108c));
++}
++
+ u32 spl_boot_device(void)
+ {
+ 	return get_boot_device();
+@@ -96,7 +104,9 @@ void board_init_f(ulong dummy)
+ 	preloader_console_init();
+ 
+ 	timer_init();
+-
++#ifdef CONFIG_ARMADA_38X
++	disable_debug_i2c_slave();
++#endif
+ 	/* Armada 375 does not support SerDes and DDR3 init yet */
+ #if !defined(CONFIG_ARMADA_375)
+ 	/* First init the serdes PHY's */
+-- 
+1.7.9.5
+
