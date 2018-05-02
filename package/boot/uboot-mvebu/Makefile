@@ -28,8 +28,16 @@ define U-Boot/clearfog
   UBOOT_IMAGE:=u-boot-spl.kwb
 endef
 
+define U-Boot/naeba
+  NAME:=Naeba machine
+  BUILD_DEVICES:=armada-385-naeba
+  BUILD_SUBTARGET:=cortexa9
+  UBOOT_IMAGE:=u-boot-spl.kwb
+endef
+
+
 UBOOT_TARGETS:= \
-	clearfog
+	clearfog naeba
 
 define Build/Configure
 	# enable additional options beyond clearfog_defconfig
@@ -37,6 +45,11 @@ define Build/Configure
 	echo CONFIG_CMD_SETEXPR=y >> $(PKG_BUILD_DIR)/configs/$(BUILD_VARIANT)_defconfig
 
 	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) $(UBOOT_CONFIGURE_VARS) $(UBOOT_CONFIG)_config
+endef
+
+define Build/Compile
+	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
+		CROSS_COMPILE=$(TARGET_CROSS)
 endef
 
 define Build/InstallDev
