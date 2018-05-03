@@ -1,0 +1,50 @@
+From 7caf4f574c261c02246552126389ff477cb0d6f2 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 3 May 2018 10:29:41 +0300
+Subject: [PATCH] ARM: dts: mvebu: armada-38x: add TDM related node
+
+Marvell Armada 38x supports TDM interface. It's main usage is to connect to an
+external codec that provides telephony functionality (like FXS / FXO).
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ arch/arm/boot/dts/armada-38x.dtsi |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/arch/arm/boot/dts/armada-38x.dtsi b/arch/arm/boot/dts/armada-38x.dtsi
+index 00ff549..f88acb1 100644
+--- a/arch/arm/boot/dts/armada-38x.dtsi
++++ b/arch/arm/boot/dts/armada-38x.dtsi
+@@ -316,6 +316,12 @@
+ 					marvell,pins = "mpp44";
+ 					marvell,function = "sata3";
+ 				};
++
++				tdm_pins: tdm_pins {
++					marvell,pins = "mpp48", "mpp49", "mpp50",
++						       "mpp51", "mpp52", "mpp53";
++					marvell,function = "tdm";
++				};
+ 			};
+ 
+ 			gpio0: gpio@18100 {
+@@ -569,6 +575,16 @@
+ 				status = "disabled";
+ 			};
+ 
++			tdm@b0000 {
++				compatible = "marvell,armada-380-tdm";
++				reg = <0xb0000 0x5000>, <0x18400 0xc>, <0x18730 0x4>;
++				reg-names = "tdm_regs", "pll_regs", "dco_div";
++				interrupts = <0 27 0x4>;
++				clocks = <&gateclk 25>;
++				clock-names = "gateclk";
++				status = "disabled";
++			};
++
+ 			coredivclk: clock@e4250 {
+ 				compatible = "marvell,armada-380-corediv-clock";
+ 				reg = <0xe4250 0xc>;
+-- 
+1.7.9.5
+
