@@ -1,0 +1,461 @@
+/*
+ * Device Tree file for Naeba machine rev 1.0 (88F6825)
+ *
+ *  Rabeeh Khoury <rabeeh@solid-run.com>, based on Russell King clearfog work
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+	SERDES mapping -
+	0. mini PCIe CON4A - PCIe0
+	1. 6141 switch (2.5Gbps capable)
+	2. mini PCIe CON2A - PCIe1
+	3. USB 3.0 Host
+	4. mini PCIe CON3A - disabled by default
+	5. SFP connector
+
+	USB 2.0 mapping -
+	0. USB 2.0 - 0 mini PCIe CON4A
+	1. USB 2.0 - 1 mini PCIe CON2A
+	2. USB 2.0 - 2 to USB 3.0 connector (used with SERDES #3)
+
+	Pin mapping -
+	0,1 - console UART
+	2,3 - I2C0 - connected to I2C ROM (not assembled), two temperature sensors
+	      (not assembled) and front panel LED controller and NFC.
+	4,5 - MDC/MDIO
+	6..17 - RGMII
+	18 - WPS front panel button
+	19 - 1512 phy reset
+	20 - Naeba front button
+	21,28,37,38,39,40 - SD0
+	22 - USB 3.0 current limiter enable (active high)
+	23 - Topaz switch reset (active low)
+	24 - SFP TX fault (input active high)
+	25 - SFP present (input active low)
+	26,27 - I2C1 - connected to SFP
+	29 - PS1240P02BT buzzer
+	30 - CON2A mini PCIe wifi disable
+	31 - CON3A wifi disable
+	32 - N/A not used
+	33 - CON2A mini PCIe reset
+	34 - CON4A mini PCIe wifi disable
+	35 - CON3A mini PCIe reset
+	36 - CPE factory default reset (GPIO active low)
+	41 - SLB9670 TPM chip select (actuve low)
+	42 - Front panel NFC reset
+	43 - Micron L-PBGA 24 ball SPI (1Gb) - typically not populated
+	44 - CON4A mini PCIe reset
+	45 - TPM PIRQ signal
+	46 - SFP TX disable
+	47 - N/A not used
+	48,49,50,51,52,53 - Slic TDM interface
+	54 - SFP LOS (input active high)
+	55 - Slic CS1
+	56(mosi),57(clk),58(miso) - SPI interface - shared with SLIC, 32Mb SPI, 1Gb SPI and TPM
+	59 - SPI 32Mb W25Q32BVZPIG CS0 chip select (bootable, typically not assembled)
+*/
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "armada-385.dtsi"
+#include "armada-385-naeba-frontpanel.dtsi"
+
+/ {
+	model = "Naeba machine";
+	compatible = "marvell,armada388",
+		"marvell,armada385", "marvell,armada380";
+
+	aliases {
+		/* So that mvebu u-boot can update the MAC addresses */
+		ethernet1 = &eth0;
+		ethernet2 = &eth1;
+		ethernet3 = &eth2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>; /* 256 MB */
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
+
+		internal-regs {
+
+			rtc@a3800 {
+				/*
+				 * If the rtc doesn't work, run "date reset"
+				 * twice in u-boot.
+				 */
+				status = "okay";
+			};
+
+			ethernet@30000 {
+				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <1>;
+				status = "okay";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@34000 {
+				managed = "in-band-status";
+				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <3>;
+				bm,pool-short = <1>;
+				status = "okay";
+			};
+
+			i2c@11000 { /* ROM, temp sensor and front panel */
+				pinctrl-0 = <&i2c0_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+			};
+
+			i2c@11100 { /* SFP */
+				pinctrl-0 = <&naeba_i2c1_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+			};
+
+			pinctrl@18000 {
+				naeba_dsa0_pins: naeba-dsa0-pins {
+					marvell,pins = "mpp23";
+					marvell,function = "gpio";
+				};
+				naeba_i2c1_pins: i2c1-pins {
+					/* SFP */
+					marvell,pins = "mpp26", "mpp27";
+					marvell,function = "i2c1";
+				};
+				naeba_sdhci_pins: naeba-sdhci-pins {
+					marvell,pins = "mpp21", "mpp28",
+						       "mpp37", "mpp38",
+						       "mpp39", "mpp40";
+					marvell,function = "sd0";
+				};
+				naeba_spi1_cs_pins: spi1-cs-pins {
+					marvell,pins = "mpp59";
+					marvell,function = "spi1";
+				};
+				wps_front_button_pins: wps-front-button-pins {
+					marvell,pins = "mpp18";
+					marvell,function = "gpio";
+				};
+				naeba_front_button_pins: naeba-front-button-pins {
+					marvell,pins = "mpp20";
+					marvell,function = "gpio";
+				};
+				rear_button_pins: rear-button-pins {
+					marvell,pins = "mpp36";
+					marvell,function = "gpio";
+				};
+				tdm_spi1_cs_pins: tdm-spi1-cs-pins {
+					marvell,pins = "mpp55";
+					marvell,function = "spi1";
+				};
+			};
+
+			tdm@b0000 {
+				pinctrl-0 = <&tdm_pins>;
+				pinctrl-names = "default";
+				pclk-freq-mhz = <8>;
+				status = "okay";
+			};
+
+			sdhci@d8000 {
+				bus-width = <4>;
+				no-1-8-v;
+				non-removable;
+				pinctrl-0 = <&naeba_sdhci_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				vmmc = <&reg_3p3v>;
+				wp-inverted;
+			};
+
+			usb@58000 {
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
+			};
+		};
+
+		pcie {
+			status = "okay";
+			/*
+			 * The two PCIe units are accessible through
+			 * the mini-PCIe connectors on the board.
+			 */
+			pcie@2,0 {
+				reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+			pcie@3,0 {
+				reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+		};
+	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		los-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		moddef0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		sfp,ethernet = <&eth2>;
+		tx-disable-gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&rear_button_pins
+			     &wps_front_button_pins
+			     &naeba_front_button_pins>;
+		pinctrl-names = "default";
+
+		button_0 {
+			/* The rear button button */
+			label = "Rear Button";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
+		};
+		button_1 {
+			/* The rear button button */
+			label = "WPS Button";
+			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_1>;
+		};
+		button_2 {
+			/* The rear button button */
+			label = "Front Button";
+			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_2>;
+		};
+	};
+};
+
+&bm {
+	status = "okay";
+};
+
+&bm_bppi {
+	status = "okay";
+};
+
+&eth0 {
+	/* ethernet@70000 */
+	pinctrl-0 = <&ge0_rgmii_pins>;
+	pinctrl-names = "default";
+	phy = <&phy_dedicated>;
+	phy-mode = "rgmii-id";
+	buffer-manager = <&bm>;
+	bm,pool-long = <0>;
+	bm,pool-short = <1>;
+	status = "okay";
+};
+
+&mdio {
+	switch0: switch0@1 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <4>;
+
+		dsa,member = <0 0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+				phy-handle = <&switch0phy0>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan1";
+				phy-handle = <&switch0phy1>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+				phy-handle = <&switch0phy2>;
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "lan3";
+				phy-handle = <&switch0phy3>;
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth2>;
+			};
+
+		};
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy0: switch0phy0@11 {
+				reg = <0x11>;
+			};
+			switch0phy1: switch0phy1@12 {
+				reg = <0x12>;
+			};
+			switch0phy2: switch0phy2@13 {
+				reg = <0x13>;
+			};
+			switch0phy3: switch0phy3@14 {
+				reg = <0x14>;
+			};
+		};
+
+	};
+	phy_dedicated: ethernet-phy@0 {
+		/*
+		 * Annoyingly, the marvell phy driver configures the LED
+		 * register, rather than preserving reset-loaded setting.
+		 * We undo that rubbish here.
+		 */
+		marvell,reg-init = <3 16 0 0x1017>;
+		reg = <0>;
+	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&spi1 {
+	/*
+	 * We don't seem to have the W25Q32 on the
+	 * A1 Rev 2.0 boards, so disable SPI.
+	 * CS0: Some board assemblies will have W25Q32
+	 * CS1: TDM module
+	 */
+	pinctrl-0 = <&spi1_pins
+		     &naeba_spi1_cs_pins
+		     &tdm_spi1_cs_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <3000000>;
+		status = "okay";
+	};
+	slic@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "mv_slic";
+		reg = <1>; /* Chip select 1 */
+		spi-max-frequency = <3000000>;
+		spi-1byte-cs;
+		spi-cpol;
+		spi-cpha;
+	};
+};
+&i2c0 {
+        pinctrl-0 = <&i2c0_pins>;
+        pinctrl-names = "default";
+        status = "okay";
+	/* U26 temperature sensor placed near SoC */
+	temp1: nct75@4c {
+		compatible = "lm75";
+		reg = <0x4c>;
+	};
+	/* U27 temperature sensor placed near RTC battery */
+	temp2: nct75@4d {
+		compatible = "lm75";
+		reg = <0x4d>;
+	};
+	/* 2Kb eeprom */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+	};
+};
