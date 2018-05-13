@@ -1,0 +1,77 @@
+From 8371b8a3324b4dcee2a51983a3309c5a8bc6cd3b Mon Sep 17 00:00:00 2001
+From: Miquel Raynal <miquel.raynal@free-electrons.com>
+Date: Fri, 22 Dec 2017 17:14:07 +0100
+Subject: [PATCH 05/11] thermal: armada: Use real status register name
+
+Three 32-bit registers are used to drive the thermal IP: control0,
+control1 and status. The two control registers share the same name both
+in the documentation and in the code, while the latter is referred as
+"sensor" in the code. Rename this pointer to be called "status" in order
+to be aligned with the documentation.
+
+Signed-off-by: Miquel Raynal <miquel.raynal@free-electrons.com>
+Reviewed-by: Gregory CLEMENT <gregory.clement@free-electrons.com>
+Signed-off-by: Eduardo Valentin <edubezval@gmail.com>
+---
+ drivers/thermal/armada_thermal.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/thermal/armada_thermal.c b/drivers/thermal/armada_thermal.c
+index d58376e..ceebabf 100644
+--- a/drivers/thermal/armada_thermal.c
++++ b/drivers/thermal/armada_thermal.c
+@@ -51,7 +51,7 @@
+ 
+ /* Marvell EBU Thermal Sensor Dev Structure */
+ struct armada_thermal_priv {
+-	void __iomem *sensor;
++	void __iomem *status;
+ 	void __iomem *control0;
+ 	void __iomem *control1;
+ 	struct armada_thermal_data *data;
+@@ -99,9 +99,9 @@ static void armadaxp_init_sensor(struct platform_device *pdev,
+ 	writel(reg, priv->control1);
+ 
+ 	/* Enable the sensor */
+-	reg = readl_relaxed(priv->sensor);
++	reg = readl_relaxed(priv->status);
+ 	reg &= ~PMU_TM_DISABLE_MASK;
+-	writel(reg, priv->sensor);
++	writel(reg, priv->status);
+ }
+ 
+ static void armada370_init_sensor(struct platform_device *pdev,
+@@ -157,7 +157,7 @@ static void armada380_init_sensor(struct platform_device *pdev,
+ 
+ static bool armada_is_valid(struct armada_thermal_priv *priv)
+ {
+-	u32 reg = readl_relaxed(priv->sensor);
++	u32 reg = readl_relaxed(priv->status);
+ 
+ 	return reg & priv->data->is_valid_bit;
+ }
+@@ -176,7 +176,7 @@ static int armada_get_temp(struct thermal_zone_device *thermal,
+ 		return -EIO;
+ 	}
+ 
+-	reg = readl_relaxed(priv->sensor);
++	reg = readl_relaxed(priv->status);
+ 	reg = (reg >> priv->data->temp_shift) & priv->data->temp_mask;
+ 
+ 	/* Get formula coeficients */
+@@ -279,9 +279,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	priv->sensor = devm_ioremap_resource(&pdev->dev, res);
+-	if (IS_ERR(priv->sensor))
+-		return PTR_ERR(priv->sensor);
++	priv->status = devm_ioremap_resource(&pdev->dev, res);
++	if (IS_ERR(priv->status))
++		return PTR_ERR(priv->status);
+ 
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+ 	control = devm_ioremap_resource(&pdev->dev, res);
+-- 
+1.7.9.5
+
