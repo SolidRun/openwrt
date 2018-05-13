@@ -1,0 +1,28 @@
+From e6ce4357c61c4ce01e5b1999cb34bb17c24db056 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Thu, 10 May 2018 00:10:57 +0300
+Subject: [PATCH] sfp: set phylink to 1000baseX for bx10 and px modules
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ drivers/net/phy/sfp-bus.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/phy/sfp-bus.c b/drivers/net/phy/sfp-bus.c
+index faa8fdd..7bb6605 100644
+--- a/drivers/net/phy/sfp-bus.c
++++ b/drivers/net/phy/sfp-bus.c
+@@ -136,7 +136,9 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
+ 		phylink_set(support, 10000baseER_Full);
+ 	if (id->base.e1000_base_sx ||
+ 	    id->base.e1000_base_lx ||
+-	    id->base.e1000_base_cx)
++	    id->base.e1000_base_cx ||
++	    id->base.e_base_bx10 ||
++	    id->base.e_base_px)
+ 		phylink_set(support, 1000baseX_Full);
+ 	if (id->base.e1000_base_t) {
+ 		phylink_set(support, 1000baseT_Half);
+-- 
+1.7.9.5
+
