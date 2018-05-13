@@ -1,0 +1,41 @@
+From a9d58a1aa35f4c01a075303b5c7dcde84e7df124 Mon Sep 17 00:00:00 2001
+From: Miquel Raynal <miquel.raynal@free-electrons.com>
+Date: Fri, 22 Dec 2017 17:14:10 +0100
+Subject: [PATCH 08/11] thermal: armada: Update Kconfig and module description
+
+Update Armada thermal driver Kconfig entry as well as the driver's
+MODULE_DESCRIPTION content, now that 64-bit SoCs are also supported,
+eg. Armada 7K and Armada 8K.
+
+Use the generic term "Marvell EBU Armada SoCs" instead of listing all
+the supported SoCs everywhere (excepted in the Kconfig description,
+where it is useful to have a list).
+
+Signed-off-by: Miquel Raynal <miquel.raynal@free-electrons.com>
+Reviewed-by: Gregory CLEMENT <gregory.clement@free-electrons.com>
+Signed-off-by: Eduardo Valentin <edubezval@gmail.com>
+---
+ drivers/thermal/armada_thermal.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/thermal/armada_thermal.c b/drivers/thermal/armada_thermal.c
+index f2eba2a..d426b23 100644
+--- a/drivers/thermal/armada_thermal.c
++++ b/drivers/thermal/armada_thermal.c
+@@ -1,5 +1,5 @@
+ /*
+- * Marvell Armada 370/XP thermal sensor driver
++ * Marvell EBU Armada SoCs thermal sensor driver
+  *
+  * Copyright (C) 2013 Marvell
+  *
+@@ -407,5 +407,5 @@ static int armada_thermal_exit(struct platform_device *pdev)
+ module_platform_driver(armada_thermal_driver);
+ 
+ MODULE_AUTHOR("Ezequiel Garcia <ezequiel.garcia@free-electrons.com>");
+-MODULE_DESCRIPTION("Armada 370/XP thermal driver");
++MODULE_DESCRIPTION("Marvell EBU Armada SoCs thermal driver");
+ MODULE_LICENSE("GPL v2");
+-- 
+1.7.9.5
+
