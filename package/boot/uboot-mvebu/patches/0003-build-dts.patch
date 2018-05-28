@@ -1,0 +1,27 @@
+From 73178702a6686c5a6293d010d18b826919dbb6d3 Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Mon, 23 Apr 2018 20:06:50 +0300
+Subject: [PATCH] mvebu: add naeba dts
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ arch/arm/dts/Makefile |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index 20a4c37..654b2c9 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -101,7 +101,8 @@ dtb-$(CONFIG_ARCH_MVEBU) +=			\
+ 	armada-xp-maxbcm.dtb			\
+ 	armada-xp-synology-ds414.dtb		\
+ 	armada-xp-theadorable.dtb		\
+-	armada-38x-controlcenterdc.dtb
++	armada-38x-controlcenterdc.dtb		\
++	armada-385-naeba.dtb
+ 
+ dtb-$(CONFIG_ARCH_UNIPHIER_LD11) += \
+ 	uniphier-ld11-global.dtb \
+-- 
+1.7.9.5
+
