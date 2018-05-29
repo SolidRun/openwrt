@@ -1,0 +1,30 @@
+--- a/drivers/leds/leds-is31fl319x.c
++++ b/drivers/leds/leds-is31fl319x.c
+@@ -338,16 +338,22 @@ static ssize_t is31fl319x_show_pwm_mode(
+ 			    struct device_attribute *attr,
+ 			    char *buf)
+ {
+-	unsigned int ctrl1;
++	unsigned int config1;
+ 	struct is31fl319x_chip *is31 = i2c_get_clientdata(to_i2c_client(dev));
+ 
+-	regmap_read(is31->regmap, IS31FL319X_CTRL1, &ctrl1);
++	regmap_read(is31->regmap, IS31FL319X_CONFIG1, &config1);
++	if (!strncmp(attr->attr.name, "agcm", 4))
++		return sprintf(buf, "%d", (config1 >> 0) & 1);
++	if (!strncmp(attr->attr.name, "agce", 4))
++		return sprintf(buf, "%d", (config1 >> 1) & 1);
++	if (!strncmp(attr->attr.name, "audm", 4))
++		return sprintf(buf, "%d", (config1 >> 2) & 1);
+ 	if (!strncmp(attr->attr.name, "rgb1mode", 4))
+-		return sprintf(buf, "%d", (ctrl1 >> 4) & 1);
++		return sprintf(buf, "%d", (config1 >> 4) & 1);
+ 	if (!strncmp(attr->attr.name, "rgb2mode", 4))
+-		return sprintf(buf, "%d", (ctrl1 >> 5) & 1);
++		return sprintf(buf, "%d", (config1 >> 5) & 1);
+ 	if (!strncmp(attr->attr.name, "rgb3mode", 4))
+-		return sprintf(buf, "%d", (ctrl1 >> 6) & 1);
++		return sprintf(buf, "%d", (config1 >> 6) & 1);
+ 	return 0;
+ }
+ 
