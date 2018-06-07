@@ -270,7 +270,7 @@
 		compatible = "sff,sfp";
 		i2c-bus = <&i2c1>;
 		los-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
-		moddef0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		mod-def0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
 		sfp,ethernet = <&eth2>;
 		tx-disable-gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		tx-fault-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
@@ -284,21 +284,21 @@
 		pinctrl-names = "default";
 
 		button_0 {
-			/* The rear button button */
+			/* The rear button */
 			label = "Rear Button";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
 			linux,code = <BTN_0>;
 		};
 		button_1 {
-			/* The rear button button */
+			/* The WPS button */
 			label = "WPS Button";
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
 			linux,code = <BTN_1>;
 		};
 		button_2 {
-			/* The rear button button */
+			/* The front button */
 			label = "Front Button";
 			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 			linux,can-disable;
@@ -324,6 +324,17 @@
 	buffer-manager = <&bm>;
 	bm,pool-long = <0>;
 	bm,pool-short = <1>;
+	status = "okay";
+};
+
+&eth2 {
+	/* ethernet@34000 */
+	bm,pool-long = <3>;
+	bm,pool-short = <1>;
+	buffer-manager = <&bm>;
+	managed = "in-band-status";
+	phy-mode = "sgmii";
+	sfp = <&sfp>;
 	status = "okay";
 };
 
@@ -367,7 +378,7 @@
 			port@5 {
 				reg = <5>;
 				label = "cpu";
-				ethernet = <&eth2>;
+				ethernet = <&eth1>;
 			};
 
 		};

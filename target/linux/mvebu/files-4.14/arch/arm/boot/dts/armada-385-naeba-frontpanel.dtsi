@@ -154,11 +154,12 @@
 			led-max-microamp = <5000>;
 		};
 	};
-	D7: leds@68 {
-		compatible = "issi,is31fl3193";
+	D7: leds@65 {
+		compatible = "issi,is31fl3196";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x68>;
+		reg = <0x65>;
+		control-mode = <0x0>; /* Master */
 		D7B: D7B@1 {
 			label = "S7:blue";
 			reg = <1>;
@@ -174,18 +175,38 @@
 			reg = <3>;
 			led-max-microamp = <5000>;
 		};
+		WL24: WL24@1 {
+			label = "wlan24";
+			reg = <4>;
+			led-max-microamp = <5000>;
+		};
+		WL5: WL5@1 {
+			label = "wlan5";
+			reg = <5>;
+			led-max-microamp = <5000>;
+		};
+		WWAN: WWAN@1 {
+			label = "wwan";
+			reg = <6>;
+			led-max-microamp = <5000>;
+		};
 	};
-	/* U26 temperature sensor on front panel */
+	/* U1 temperature sensor on front panel */
 	temp3: nct75@4e {
 		compatible = "lm75";
 		reg = <0x4e>;
+	};
+	/* U2 temperature sensor on v6logo */
+	temp4: nct75@4f {
+		compatible = "lm75";
+		reg = <0x4f>;
 	};
 	/* 2Kb eeprom on front panel */
 	eeprom@51 {
 		compatible = "atmel,24c02";
 		reg = <0x51>;
 	};
-	/* 2Kb eeprom on front panel */
+	/* 2Kb eeprom on v6logo */
 	eeprom@52 {
 		compatible = "atmel,24c02";
 		reg = <0x52>;
