@@ -1,0 +1,34 @@
+From 5b87d3a843a9a0294b1f49b3c23fff095fbb5a0a Mon Sep 17 00:00:00 2001
+From: Rabeeh Khoury <rabeeh@solid-run.com>
+Date: Mon, 18 Jun 2018 20:04:18 +0300
+Subject: [PATCH] mvebu: naeba: enable SSCG and tune RGMII and SD
+
+Enable drive SSCG and then tune RGMII and SD interface drive strength.
+
+Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+---
+ board/solidrun/naeba/naeba.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/board/solidrun/naeba/naeba.c b/board/solidrun/naeba/naeba.c
+index ac86bcb..621b14c 100644
+--- a/board/solidrun/naeba/naeba.c
++++ b/board/solidrun/naeba/naeba.c
+@@ -112,6 +112,14 @@ int board_init(void)
+ 	setbits_le32(MVEBU_GPIO0_BASE + 0x0, BIT(19) | BIT(23));
+ 	mdelay(10);
+ 
++	/* Enable spread spectrum component */
++	writel(0x0d058320, MVEBU_REGISTER(0x184b0));
++	mdelay(1);
++	writel(0x0d058322, MVEBU_REGISTER(0x184b0));
++	mdelay(1);
++	writel(0x0d058323, MVEBU_REGISTER(0x184b0));
++	/* Lower RGMII and SD interface drive strength */
++	writel(0xbb1111bb, MVEBU_REGISTER(0x184e4));
+ 	return 0;
+ }
+ 
+-- 
+1.7.9.5
+
