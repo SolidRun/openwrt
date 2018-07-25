@@ -1,0 +1,49 @@
+diff --git a/drivers/net/dsa/mv88e6xxx/chip.c b/drivers/net/dsa/mv88e6xxx/chip.c
+index eebda5e..2f9f4c5 100644
+--- a/drivers/net/dsa/mv88e6xxx/chip.c
++++ b/drivers/net/dsa/mv88e6xxx/chip.c
+@@ -2404,7 +2404,7 @@ static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
+ 	.port_set_link = mv88e6xxx_port_set_link,
+ 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+ 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+-	.port_set_speed = mv88e6390_port_set_speed,
++	.port_set_speed = mv88e6x41_port_set_speed,
+ 	.port_tag_remap = mv88e6095_port_tag_remap,
+ 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
+ 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+diff --git a/drivers/net/dsa/mv88e6xxx/port.c b/drivers/net/dsa/mv88e6xxx/port.c
+index a7801f6..35bc945 100644
+--- a/drivers/net/dsa/mv88e6xxx/port.c
++++ b/drivers/net/dsa/mv88e6xxx/port.c
+@@ -299,6 +299,19 @@ int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
+ 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
+ }
+ 
++/* Support 10, 100, 200, 1000, 2500 Mbps (e.g. 88E6390) */
++int mv88e6x41_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
++{
++	if (speed == SPEED_MAX)
++		speed = port == 5 ? 2500 : 1000;
++
++	if (speed > 2500)
++		return -EOPNOTSUPP;
++
++	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
++}
++
++
+ /* Support 10, 100, 200, 1000, 2500, 10000 Mbps (e.g. 88E6190X) */
+ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
+ {
+diff --git a/drivers/net/dsa/mv88e6xxx/port.h b/drivers/net/dsa/mv88e6xxx/port.h
+index b16d5f0..0ac9ff8 100644
+--- a/drivers/net/dsa/mv88e6xxx/port.h
++++ b/drivers/net/dsa/mv88e6xxx/port.h
+@@ -254,6 +254,7 @@ int mv88e6390_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
+ int mv88e6185_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+ int mv88e6352_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+ int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
++int mv88e6x41_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
+ 
+ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
