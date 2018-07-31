@@ -1,0 +1,12 @@
+diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
+index b5efb8c..b207355 100644
+--- a/arch/arm/boot/dts/Makefile
++++ b/arch/arm/boot/dts/Makefile
+@@ -1030,6 +1030,7 @@ dtb-$(CONFIG_MACH_ARMADA_38X) += \
+ 	armada-385-linksys-venom.dtb \
+ 	armada-385-synology-ds116.dtb \
+ 	armada-385-turris-omnia.dtb \
++	armada-385-naeba.dtb \
+ 	armada-388-clearfog.dtb \
+ 	armada-388-clearfog-base.dtb \
+ 	armada-388-clearfog-pro.dtb \
