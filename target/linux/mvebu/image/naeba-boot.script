@@ -1,0 +1,16 @@
+# check if environment variable fwu_flag exists. if it doesn't exists
+# then it means that this is the first boot on a fresh system
+
+env exists fwu_flag
+if test "$?" = 1; then setenv fwu_flag 2; fi
+
+if test "${fwu_flag}" != 0; then setenv bootpart 1; setenv bootdir; else setenv bootpart 3; setenv bootdir /boot/; fi
+setenv bootargs console=ttyS0,115200n8 root=/dev/mmcblk0p${bootpart} ro rootwait fwu_flag=${fwu_flag}
+setenv fdt_high 0x07a12000
+
+saveenv
+
+load mmc 0:${bootpart} 0x02000000 ${bootdir}/zImage
+load mmc 0:${bootpart} 0x05F00000 ${bootdir}/armada-385-naeba.dtb
+
+bootz 0x02000000 - 0x05F00000
