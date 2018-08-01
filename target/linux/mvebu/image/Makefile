@@ -32,6 +32,11 @@ define Build/boot-scr
 	mkimage -A arm -O linux -T script -C none -a 0 -e 0 -d $@-new.bootscript $@-boot.scr
 endef
 
+define Build/boot-scr-naeba
+	rm -f $@.bootscript
+	mkimage -A arm -O linux -T script -C none -a 0 -e 0 -d naeba-boot.script $@.bootscript
+endef
+
 define Build/boot-img
 	rm -f $@.boot
 	mkfs.fat -C $@.boot 16384
@@ -47,6 +52,39 @@ define Build/boot-img-ext4
 	$(CP) $(IMAGE_KERNEL) $@.boot/$(KERNEL_NAME)
 	-$(CP) $@-boot.scr $@.boot/boot.scr
 	make_ext4fs -J -l 16384K $@.bootimg $@.boot
+endef
+
+define Build/partition1
+	rm -f $@.partition1
+	rm -f $@.partition1.cmd_file
+	touch $@.partition1.cmd_file
+	NUM_OF_PART1_BLOCKS=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 512)); \
+	mkfs.ext4 $@.partition1 -b 4096 $$NUM_OF_PART1_BLOCKS
+	$(foreach dts,$(DEVICE_DTS), echo "write $(DTS_DIR)/$(dts).dtb $(dts).dtb" >> $@.partition1.cmd_file;)
+	echo "write $(KDIR)/$(KERNEL_INITRAMFS_NAME) zImage" >> $@.partition1.cmd_file
+	echo "write $@.bootscript boot.scr" >> $@.partition1.cmd_file
+	echo "mkdir rootfs" >> $@.partition1.cmd_file
+	echo "cd rootfs" >> $@.partition1.cmd_file
+	echo "write $(IMAGE_ROOTFS) rootfs.ext4" >> $@.partition1.cmd_file
+	debugfs -w -f $@.partition1.cmd_file $@.partition1
+endef
+
+define Build/partition2
+	rm -f $@.partition2
+	NUM_OF_BLOCKS=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 512 )); \
+	mkfs.ext4 -F $@.partition2  -b 4096 $$NUM_OF_BLOCKS
+endef
+
+define Build/partition3
+	rm -f $@.partition3
+	NUM_OF_BLOCKS=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 256 )); \
+	mkfs.ext4 -F $@.partition2  -b 4096 $$NUM_OF_BLOCKS
+endef
+
+define Build/partition4
+	rm -f $@.partition4
+	# This is /etc/ overlay directory
+	mkfs.ext4 -F $@.partition4 -b 4096 8192 # 32MByte in size
 endef
 
 define Build/sdcard-img
@@ -78,6 +116,18 @@ define Build/omnia-medkit-initramfs
 	$(TAR) -rp --numeric-owner --owner=0 --group=0 --sort=name \
 		$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") \
 		--file=$@ -C $(dir $(IMAGE_KERNEL))boot/ .
+endef
+
+define Build/sdcard-img-naeba
+	PART1_ROOTFS_SIZE=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 1024 * 4 ));\
+	PART2_ROOTFS_SIZE=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 1024 * 4 ));\
+	ROOTFS_SIZE=$$(( $(CONFIG_TARGET_ROOTFS_PARTSIZE) * 1024 * 2 )); \
+	./gen_mvebu_sdcard_img.sh $@ \
+		"$(STAGING_DIR_IMAGE)/naeba-u-boot-spl.kwb" \
+		83 $$PART1_ROOTFS_SIZE $@.partition1 \
+		83 $$PART2_ROOTFS_SIZE $@.partition2 \
+		83 $$ROOTFS_SIZE $@.partition3 \
+		83 65536 $@.partition4
 endef
 
 define Device/Default
