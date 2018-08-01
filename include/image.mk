@@ -266,6 +266,11 @@ endef
 
 ifdef CONFIG_TARGET_ROOTFS_TARGZ
   define Image/Build/targz
+	$(if $(CONFIG_TARGET_mvebu_DEVICE_armada-385-naeba),\
+	mkdir -p $(TARGET_DIR)/tmp; mkdir -p $(TARGET_DIR)/boot;\
+	mkimage -A arm -O linux -T script -C none -a 0 -e 0 -d naeba-boot.script $(TARGET_DIR)/boot.scr;\
+	$(CP) $(LINUX_DIR)/arch/arm/boot/dts/armada-385-naeba.dtb $(TARGET_DIR)/boot/;\
+	$(CP) $(LINUX_DIR)/../zImage $(TARGET_DIR)/boot/zImage)
 	$(TAR) -cp --numeric-owner --owner=0 --group=0 --sort=name \
 		$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") \
 		-C $(TARGET_DIR)/ . | gzip -9n > $(BIN_DIR)/$(IMG_PREFIX)$(if $(PROFILE_SANITIZED),-$(PROFILE_SANITIZED))-rootfs.tar.gz
@@ -570,11 +575,11 @@ define BuildImage
   endif
 
   kernel_prepare: image_prepare
-	$(call Image/Build/targz)
 	$(call Image/Build/cpiogz)
 	$(call Image/BuildKernel)
 	$(if $(CONFIG_TARGET_ROOTFS_INITRAMFS),$(if $(IB),,$(call Image/BuildKernel/Initramfs)))
 	$(call Image/InstallKernel)
+	$(call Image/Build/targz)
 
   $(foreach device,$(TARGET_DEVICES),$(call Device,$(device)))
   $(foreach device,$(LEGACY_DEVICES),$(call LegacyDevice,$(device)))
